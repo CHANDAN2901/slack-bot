@@ -1,248 +1,3 @@
-// const mysql = require('mysql2/promise');
-// const config = require('./config');
-// const redis = require('redis');
-
-// const pool = mysql.createPool({
-//   host: config.DB_HOST,
-//   user: config.DB_USER,
-//   password: config.DB_PASSWORD,
-//   database: config.DB_NAME,
-//   waitForConnections: true,
-//   connectionLimit: 20,
-//   queueLimit: 0
-// });
-
-// const redisClient = redis.createClient({
-//   url: config.REDIS_URL // Make sure to add this to your config file
-// });
-
-// redisClient.on('error', (err) => console.log('Redis Client Error', err));
-
-// // Connect to Redis
-// (async () => {
-//   await redisClient.connect();
-// })();
-
-// const REDIS_MESSAGE_LIMIT = 1000; // Adjust this value based on your Redis storage capacity
-// const CONTEXT_MESSAGE_COUNT = 10;
-
-// const dbOps = {
-//   storeUser: async (userId, username, email) => {
-//     try {
-//       await pool.query(
-//         'INSERT INTO users (user_id, username, email) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE username = ?, email = ?',
-//         [userId, username, email, username, email]
-//       );
-//     } catch (error) {
-//       console.error('Error storing user:', error);
-//     }
-//   },
-
-//   storeChannel: async (channelId, channelName) => {
-//     try {
-//       await pool.query('INSERT IGNORE INTO channels (channel_id, channel_name) VALUES (?, ?)', [channelId, channelName]);
-//     } catch (error) {
-//       console.error('Error storing channel:', error);
-//     }
-//   },
-
-//   storeMessage: async (userId, channelId, content) => {
-//     try {
-//       if (content.length > 2000) {
-//         content = content.slice(0, 1997) + '...';
-//       }
-//       const trimmedContent = content.replace(/^<@[A-Z0-9]+>\s*/, '');
-
-//       // Store in Redis
-//       await redisClient.rPush(`messages:${channelId}`, JSON.stringify({ userId, content: trimmedContent, timestamp: Date.now() }));
-
-//       // Check if we've reached the limit and need to transfer data
-//       const messageCount = await redisClient.lLen(`messages:${channelId}`);
-//       if (messageCount > REDIS_MESSAGE_LIMIT) {
-//         await transferDataToMySQL(channelId);
-//       }
-//     } catch (error) {
-//       console.error('Error storing message in Redis:', error);
-//     }
-//   },
-
-//   getLastMessages: async (channelId, limit = 7) => {
-//     try {
-//       const messages = await redisClient.lRange(`messages:${channelId}`, -limit, -1);
-//       return messages.map(msg => {
-//         const parsedMsg = JSON.parse(msg);
-//         return `User ${parsedMsg.userId}: ${parsedMsg.content}`;
-//       });
-//     } catch (error) {
-//       console.error('Error getting last messages from Redis:', error);
-//       return [];
-//     }
-//   },
-
-//   clearChannelContext: async (channelId) => {
-//     try {
-//       await redisClient.del(`messages:${channelId}`);
-//     } catch (error) {
-//       console.error('Error clearing channel context:', error);
-//     }
-//   },
-
-//   storeSummary: async (channelId, content, startTime, endTime) => {
-//     try {
-//       await pool.query(
-//         'INSERT INTO summaries (channel_id, content, start_time, end_time) VALUES (?, ?, ?, ?)',
-//         [channelId, content, startTime, endTime]
-//       );
-//     } catch (error) {
-//       console.error('Error storing summary:', error);
-//     }
-//   },
-
-//   storeHourlyUserSummary: async (userId, channelId, summary) => {
-//     try {
-//       await pool.query(
-//         'INSERT INTO user_summaries (user_id, channel_id, content, summary_type) VALUES (?, ?, ?, "hourly")',
-//         [userId, channelId, summary]
-//       );
-//     } catch (error) {
-//       console.error('Error storing hourly user summary:', error);
-//     }
-//   },
-
-//   storeWeeklyUserSummary: async (userId, summary) => {
-//     try {
-//       await pool.query(
-//         'INSERT INTO user_summaries (user_id, content, summary_type) VALUES (?, ?, "weekly")',
-//         [userId, summary]
-//       );
-//     } catch (error) {
-//       console.error('Error storing weekly user summary:', error);
-//     }
-//   },
-
-//   getUserMessages: async (userId, startDate, endDate) => {
-//     try {
-//       const [rows] = await pool.query(
-//         'SELECT content FROM messages WHERE user_id = ? AND created_at BETWEEN ? AND ?',
-//         [userId, startDate, endDate]
-//       );
-//       return rows.map(row => row.content);
-//     } catch (error) {
-//       console.error('Error getting user messages:', error);
-//       return [];
-//     }
-//   },
-
-//   getUserEmail: async (userId) => {
-//     try {
-//       const [rows] = await pool.query('SELECT email FROM users WHERE user_id = ?', [userId]);
-//       return rows[0]?.email;
-//     } catch (error) {
-//       console.error('Error getting user email:', error);
-//       return null;
-//     }
-//   },
-
-//   // clearUserContext: async (userId) => {
-//   //   try {
-//   //     await pool.query('UPDATE users SET last_context = ? WHERE user_id = ?', ['', userId]);
-//   //   } catch (error) {
-//   //     console.error('Error clearing user context:', error);
-//   //   }
-//   // },
-
-//   getLastSaveTime: async (userId) => {
-//     try {
-//       const [rows] = await pool.query('SELECT last_save_time FROM users WHERE user_id = ?', [userId]);
-//       return rows[0]?.last_save_time || new Date(0);
-//     } catch (error) {
-//       console.error('Error getting last save time:', error);
-//       return new Date(0);
-//     }
-//   },
-
-//   saveUserData: async (userId, lastSaveTime) => {
-//     try {
-//       const [messages] = await pool.query(
-//         'SELECT content FROM messages WHERE user_id = ? AND created_at > ? ORDER BY created_at ASC',
-//         [userId, lastSaveTime]
-//       );
-
-//       if (messages.length > 0) {
-//         const values = messages.map(m => [userId, m.content]);
-//         await pool.query('INSERT INTO user_data (user_id, content) VALUES ?', [values]);
-//         await pool.query('UPDATE users SET last_save_time = NOW() WHERE user_id = ?', [userId]);
-//       }
-//     } catch (error) {
-//       console.error('Error saving user data:', error);
-//     }
-//   },
-// };
-
-// async function transferDataToMySQL(channelId) {
-//   const connection = await pool.getConnection();
-//   try {
-//     await connection.beginTransaction();
-
-//     // Get all messages for the channel
-//     const messages = await redisClient.lRange(`messages:${channelId}`, 0, -1);
-//     console.log(`Found ${messages.length} messages for channel ${channelId}`);
-
-//     if (messages.length <= CONTEXT_MESSAGE_COUNT) {
-//       console.log(`Not enough messages to transfer for channel ${channelId}. Skipping transfer.`);
-//       return;
-//     }
-
-//     let transferredCount = 0;
-//     // Transfer messages to MySQL
-//     for (const messageJson of messages.slice(0, -CONTEXT_MESSAGE_COUNT)) {
-//       const message = JSON.parse(messageJson);
-//       const [result] = await connection.query(
-//         'INSERT INTO messages (user_id, channel_id, content, created_at) VALUES (?, ?, ?, FROM_UNIXTIME(?))',
-//         [message.userId, channelId, message.content, message.timestamp / 1000]
-//       );
-//       if (result.affectedRows > 0) {
-//         transferredCount++;
-//       }
-//     }
-
-//     // Keep only the last CONTEXT_MESSAGE_COUNT messages in Redis
-//     await redisClient.lTrim(`messages:${channelId}`, -CONTEXT_MESSAGE_COUNT, -1);
-
-//     await connection.commit();
-//     console.log(`Transferred ${transferredCount} messages for channel ${channelId} to MySQL and trimmed Redis`);
-//   } catch (error) {
-//     await connection.rollback();
-//     console.error(`Error transferring data to MySQL for channel ${channelId}:`, error);
-//   } finally {
-//     connection.release();
-//   }
-// }
-
-// // Modify the periodic transfer function
-// async function periodicTransfer() {
-//   const channels = await redisClient.keys('messages:*');
-//   let totalTransferred = 0;
-//   for (const channelKey of channels) {
-//     const channelId = channelKey.split(':')[1];
-//     await transferDataToMySQL(channelId);
-//     const messageCount = await redisClient.lLen(channelKey);
-//     totalTransferred += messageCount > CONTEXT_MESSAGE_COUNT ? messageCount - CONTEXT_MESSAGE_COUNT : 0;
-//   }
-//   if (totalTransferred > 0) {
-//     console.log(`Periodic transfer: Transferred a total of ${totalTransferred} messages across all channels`);
-//   } else {
-//     console.log('Periodic transfer: No new messages to transfer');
-//   }
-// }
-
-// setInterval(periodicTransfer,60 * 60 * 1000);
-
-// module.exports = {
-//   dbOps,
-//   transferDataToMySQL
-// };
-
 const mysql = require("mysql2/promise");
 const config = require("./config");
 const redis = require("redis");
@@ -343,6 +98,19 @@ const dbOps = {
       }
     } catch (error) {
       console.error("Error clearing user context:", error);
+    }
+  },
+
+  updateUserSubscription: async (userId, subscriptionType, isSubscribed) => {
+    try {
+      const columnName = `${subscriptionType}_subscription`;
+      await pool.query(
+        `UPDATE users SET ${columnName} = ?, subscription_updated_at = CURRENT_TIMESTAMP WHERE user_id = ?`,
+        [isSubscribed ? 1 : 0, userId]
+      );
+      console.log(`Updated ${subscriptionType} subscription for user ${userId} to ${isSubscribed}`);
+    } catch (error) {
+      console.error(`Error updating ${subscriptionType} subscription for user ${userId}:`, error);
     }
   },
 
@@ -499,6 +267,158 @@ const dbOps = {
       console.error("Error saving user data:", error);
     }
   },
+
+  getUserProfile: async (userId) => {
+    try {
+      const [userProfile] = await pool.query(
+        "SELECT * FROM users WHERE user_id = ?",
+        [userId]
+      );
+
+      console.log("User profile from database: ", userProfile)
+      if (userProfile.length === 0) {
+        throw new Error("User not found");
+      }
+      return userProfile[0];
+    } catch (error) {
+      console.error("Error getting user profile:", error);
+      throw error;
+    }
+  },
+
+  getUserPurchaseHistory: async (userId) => {
+    try {
+      const [purchases] = await pool.query(
+        "SELECT product_id, purchase_date FROM user_purchases WHERE user_id = ?",
+        [userId]
+      );
+      // console.log("Product purchases: ", purchases)
+      return purchases;
+    } catch (error) {
+      console.error("Error getting user purchase history:", error);
+      return [];
+    }
+  },
+
+  getPreviousUserPurchases: async (userId) => {
+    try {
+      const [purchases] = await pool.query(
+        "SELECT product_id, purchase_date FROM user_purchases WHERE user_id = ? AND purchase_date < NOW()",
+        [userId]
+      );
+      return purchases;
+    } catch (error) {
+      console.error("Error getting previous user purchases:", error);
+      return [];
+    }
+  },
+
+  getNewPurchases: async (userId) => {
+    try {
+      const currentPurchases = await dbOps.getUserPurchaseHistory(userId);
+      // console.log(" Product from database currentPurchases", currentPurchases)
+      const previousPurchases = await dbOps.getPreviousUserPurchases(userId);
+
+      const newPurchases = currentPurchases;
+
+      // const newPurchases = currentPurchases.filter(
+      //   (currentPurchase) =>
+      //     !previousPurchases.some(
+      //       (prevPurchase) => prevPurchase.product_id === currentPurchase.product_id
+      //     )
+      // );
+
+      return newPurchases;
+    } catch (error) {
+      console.error("Error getting new purchases:", error);
+      return [];
+    }
+  },
+
+  getProductDetails: async (productId) => {
+    try {
+      const [product] = await pool.query(
+        "SELECT * FROM product_details WHERE product_id = ?",
+        [productId]
+      );
+      // console.log("get Product details: ", product)
+      return product;
+    } catch (error) {
+      console.error("Error getting product details:", error);
+      return null;
+    }
+  },
+
+  storePartOneData: async (userId, userData) => {
+    const connection = await pool.getConnection();
+    try {
+      await connection.query(
+        `INSERT INTO users (user_id, username, full_name, email, mobile_no, age)
+             VALUES (?, ?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE
+             username = VALUES(username),
+             full_name = VALUES(full_name),
+             email = VALUES(email),
+             mobile_no = VALUES(mobile_no),
+             age = VALUES(age)`,
+        [
+          userId,
+          userData.username,  // Use the username here
+          userData.full_name,
+          userData.email,
+          userData.mobile_no,
+          userData.age
+        ]
+      );
+    } finally {
+      connection.release();
+    }
+  },
+
+  storePartTwoData: async (userId, userData) => {
+    const connection = await pool.getConnection();
+    try {
+      await connection.query(
+        `UPDATE users 
+         SET height = ?,
+             weight = ?,
+             goal = ?,
+             daily_routine = ?,
+             allergies = ?,
+             diet_preferences = ?,
+             exercise_preferences = ?,
+             is_completed = 1,
+             kyc_completed_at = CURRENT_TIMESTAMP
+         WHERE user_id = ?`,
+        [
+          userData.height,
+          userData.weight,
+          JSON.stringify(userData.goal),
+          userData.daily_routine,
+          userData.allergies, // Now storing as plain text
+          JSON.stringify(userData.diet_preferences),
+          JSON.stringify(userData.exercise_preferences),
+          userId
+        ]
+      );
+    } finally {
+      connection.release();
+    }
+  },
+
+  checkKycCompletion: async (userId) => {
+    const connection = await pool.getConnection();
+    try {
+      const [rows] = await connection.query(
+        'SELECT kyc_completed_at FROM users WHERE user_id = ?',
+        [userId]
+      );
+      return rows.length > 0 && rows[0].kyc_completed_at !== null;
+    } finally {
+      connection.release();
+    }
+  }
+
 };
 
 async function transferDataToMySQL(channelId) {
@@ -558,10 +478,9 @@ async function periodicTransfer() {
     totalTransferred += Math.max(0, messageCount - CONTEXT_MESSAGE_COUNT);
   }
   console.log(
-    `Periodic transfer: ${
-      totalTransferred > 0
-        ? `Transferred a total of ${totalTransferred} messages across all channels`
-        : "No new messages to transfer"
+    `Periodic transfer: ${totalTransferred > 0
+      ? `Transferred a total of ${totalTransferred} messages across all channels`
+      : "No new messages to transfer"
     }`
   );
 }

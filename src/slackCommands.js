@@ -1,4 +1,6 @@
 const dbOps = require('./database').dbOps;
+const formLogic = require('./formLogic');
+
 
 function init(app) {
   console.log('Initializing command handlers...');
@@ -20,6 +22,15 @@ function init(app) {
         response_type: 'ephemeral',
         text: 'An error occurred while clearing your context. Please try again later.'
       });
+    }
+  });
+
+  app.command('/update-profile', async ({ ack, body, client }) => {
+    await ack();
+    try {
+      await formLogic.handleUserDetailsCommand(client, body);
+    } catch (error) {
+      console.error('Error handling /update-profile command:', error);
     }
   });
 }
