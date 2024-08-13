@@ -1,94 +1,3 @@
-// const cron = require('node-cron');
-// const dbOps = require('./database').dbOps;
-// const aiOps = require('./ai');
-// const utils = require('./utils');
-
-// function init(app) {
-//   // Hourly chat summarization
-//   cron.schedule('0 * * * *', async () => {
-//     console.log('Running hourly chat summarization');
-//     const [channels] = await dbOps.pool.query('SELECT DISTINCT channel_id FROM messages WHERE created_at >= NOW() - INTERVAL 1 HOUR');
-
-//     for (const channel of channels) {
-//       const startTime = new Date(Date.now() - 3600000);
-//       const endTime = new Date();
-//       const [messages] = await dbOps.pool.query('SELECT user_id, content FROM messages WHERE channel_id = ? AND created_at >= ? AND created_at <= ?', [channel.channel_id, startTime, endTime]);
-
-//       // Generate channel summary
-//       const channelSummary = await aiOps.summarizeChat(messages.map(m => m.content));
-
-//       if (channelSummary) {
-//         await dbOps.storeSummary(channel.channel_id, channelSummary, startTime, endTime);
-//         await app.client.chat.postMessage({
-//           token: process.env.SLACK_BOT_TOKEN,
-//           channel: channel.channel_id,
-//           text: `Here's a summary of the fitness discussion in the last hour:\n\n${channelSummary}`
-//         });
-//       }
-
-//       // Generate and store user-specific summaries
-//       const userMessages = {};
-//       messages.forEach(m => {
-//         if (!userMessages[m.user_id]) userMessages[m.user_id] = [];
-//         userMessages[m.user_id].push(m.content);
-//       });
-
-//       for (const [userId, userMsgs] of Object.entries(userMessages)) {
-//         const userSummary = await aiOps.summarizeChat(userMsgs);
-//         await dbOps.storeHourlyUserSummary(userId, channel.channel_id, userSummary);
-//       }
-//     }
-//   });
-
-//   // Weekly user report generation and email sending
-//   cron.schedule('0 * * * *', async () => {
-//     console.log('Running weekly user report generation');
-//     const [users] = await dbOps.pool.query('SELECT user_id, email FROM users');
-
-//     for (const user of users) {
-//       const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-//       const endDate = new Date();
-//       const userMessages = await dbOps.getUserMessages(user.user_id, startDate, endDate);
-
-//       if (userMessages.length > 0) {
-//         const weeklySummary = await aiOps.generateUserWeeklySummary(userMessages);
-//         await dbOps.storeWeeklyUserSummary(user.user_id, weeklySummary);
-
-//         const pdfBuffer = await utils.generatePDF(weeklySummary);
-
-//         if (user.email) {
-//           await utils.sendEmail(
-//             user.email,
-//             'Your Weekly Fitness Report',
-//             'Please find attached your weekly fitness report.',
-//             [{
-//               filename: 'weekly_fitness_report.pdf',
-//               content: pdfBuffer,
-//               contentType: 'application/pdf'
-//             }]
-//           );
-//           console.log(`Email sent to ${user.email}`);
-//         } else {
-//           console.log(`No email found for user ${user.user_id}`);
-//         }
-//       } else {
-//         console.log(`No messages found for user ${user.user_id}`);
-//       }
-//     }
-//   });
-
-//   // Schedule database updates every 10 minutes
-//   cron.schedule('*/10 * * * *', async () => {
-//     console.log('Running scheduled database update');
-//     await dbOps.updateDatabaseFromCache();
-//   });
-// }
-
-// module.exports = { init };
-
-
-
-
 const cron = require("node-cron");
 const { dbOps } = require("./database");
 const aiOps = require("./ai");
@@ -96,6 +5,7 @@ const utils = require("./utils");
 
 const { WebClient } = require("@slack/web-api");
 const { SLACK_BOT_TOKEN } = require("./config");
+const { error } = require("pdf-lib");
 const slackClient = new WebClient(process.env.SLACK_BOT_TOKEN);
 
 async function runHourlyChatSummarization() {
@@ -248,6 +158,12 @@ async function runWeeklyUserReportGeneration() {
 async function checkAndNotifyInactiveUsers() {
   console.log("Checking for inactive users");
   try {
+    // const [inactiveUsers] = await dbOps.pool.query(`
+    //   SELECT DISTINCT u.user_id, u.email
+    //   FROM users u
+    // `);
+
+    console.log("Inactive User: ", inactiveUsers);
     const [inactiveUsers] = await dbOps.pool.query(`
       SELECT DISTINCT u.user_id, u.email
       FROM users u
@@ -257,37 +173,62 @@ async function checkAndNotifyInactiveUsers() {
 
     // Fetch all motivation messages
     const [motivations] = await dbOps.pool.query(`
-      SELECT message FROM motivations
+      SELECT message_text FROM motivational_messages
     `);
 
     for (const user of inactiveUsers) {
       console.log(`Sending notification to inactive user: ${user.user_id}`);
-      
+
       // Select a random motivation message
       const randomIndex = Math.floor(Math.random() * motivations.length);
-      const motivationalMessage = motivations[randomIndex].message;
+      const motivationalMessage = motivations[randomIndex].message_text;
+
+      if (motivationalMessage) {
+        try {
+          const conversationResponse = await slackClient.conversations.open({
+            users: user.user_id,
+          });
+
+          if (!conversationResponse.ok) {
+            throw new Error(`Failed to open conversation: ${conversationResponse.error}`);
+          }
+
+          const channelId = conversationResponse.channel.id;
+
+          await slackClient.chat.postMessage({
+            channel: channelId,
+            text: motivationalMessage,
+          });
+
+          console.log(`Notification sent to user ${user.user_id} via Slack`);
+        } catch (slackError) {
+          console.error(`Error sending Slack notification to user ${user.user_id}:`, slackError);
+        }
+      } else {
+        console.error(`No motivational message available for user ${user.user_id}`);
+      }
 
       // Send Slack message
-      try {
-        const conversationResponse = await slackClient.conversations.open({
-          users: user.user_id,
-        });
+      // try {
+      //   const conversationResponse = await slackClient.conversations.open({
+      //     users: user.user_id,
+      //   });
 
-        if (!conversationResponse.ok) {
-          throw new Error(`Failed to open conversation: ${conversationResponse.error}`);
-        }
+      //   if (!conversationResponse.ok) {
+      //     throw new Error(`Failed to open conversation: ${conversationResponse.error}`);
+      //   }
 
-        const channelId = conversationResponse.channel.id;
+      //   const channelId = conversationResponse.channel.id;
 
-        await slackClient.chat.postMessage({
-          channel: channelId,
-          text: motivationalMessage,
-        });
+      //   await slackClient.chat.postMessage({
+      //     channel: channelId,
+      //     text: motivationalMessage,
+      //   });
 
-        console.log(`Notification sent to user ${user.user_id} via Slack`);
-      } catch (slackError) {
-        console.error(`Error sending Slack notification to user ${user.user_id}:`, slackError);
-      }
+      //   console.log(`Notification sent to user ${user.user_id} via Slack`);
+      // } catch (slackError) {
+      //   console.error(`Error sending Slack notification to user ${user.user_id}:`, slackError);
+      // }
 
       // Send email notification if email is available
       // if (user.email) {
@@ -308,10 +249,46 @@ async function checkAndNotifyInactiveUsers() {
   }
 }
 
+async function checkAndSendCustomizedNutritionPlans() {
+  console.log("Starting customized nutrition plan check")
+  try {
+    const [users] = await dbOps.pool.query("SELECT user_id FROM users WHERE nutrition_subscription = 1");
+
+    for (const user of users) {
+      const newPurchases = await dbOps.getNewPurchases(user.user_id);
+      if (newPurchases.length > 0) {
+        await utils.sendCustomizedNutritionPlan(user.user_id, newPurchases);
+      }
+    }
+  } catch (error) {
+    console.error("Error in checkAndSendCustomizedNutritionPlans:", error);
+  }
+}
+
+async function checkAndSendCustomizedExercisePlans() {
+  console.log("Starting customized exercise plan check")
+  try {
+    const [users] = await dbOps.pool.query("SELECT user_id FROM users WHERE exercise_subscription = 1");
+
+    for (const user of users) {
+      const newPurchases = await dbOps.getNewPurchases(user.user_id);
+      if (newPurchases.length > 0) {
+        await utils.sendCustomizedExercisePlan(user.user_id, newPurchases);
+      }
+    }
+  } catch (error) {
+    console.error("Error in checkAndSendCustomizedExercisePlans:", error);
+  }
+}
+
+
 function init(app) {
   cron.schedule("0 * * * *", runHourlyChatSummarization);
   cron.schedule("0 0 * * 0", runWeeklyUserReportGeneration);
   cron.schedule("0 12 * * *", checkAndNotifyInactiveUsers);
+  cron.schedule("0 12 * * *", checkAndSendCustomizedNutritionPlans);
+  cron.schedule("* * * * *", checkAndSendCustomizedExercisePlans);
+
 }
 
 module.exports = { init };

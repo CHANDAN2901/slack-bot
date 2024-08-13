@@ -1,10 +1,10 @@
 const { App, ExpressReceiver } = require('@slack/bolt');
 const config = require('./config');
-const database = require('./database');
 const utils = require('./utils');
 const slackEvents = require('./slackEvents');
 const slackCommands = require('./slackCommands');
 const cronJobs = require('./cron');
+const formLogic = require('./formLogic');
 
 const receiver = new ExpressReceiver({
   signingSecret: config.SLACK_SIGNING_SECRET,
@@ -17,24 +17,42 @@ const app = new App({
   receiver,
 });
 
-// Initialize event handlers
+// Initialize event handlers, command handlers, and cron jobs
 slackEvents.init(app);
-
-// Initialize command handlers
 slackCommands.init(app);
-
-// Initialize cron jobs
 cronJobs.init(app);
 
-// Error logging
-app.error((error) => {
-  console.error('An error occurred:', error);
+// Handle Part 1 submission
+app.view('user_details_part_one', async ({ ack, body, view, client }) => {
+  try {
+    const result = await formLogic.handlePartOneSubmission(client, body, view);
+    await ack(result);
+  } catch (error) {
+    console.error('Error handling Part One submission:', error);
+    await ack({
+      response_action: "errors",
+      errors: { general: "An unexpected error occurred. Please try again." }
+    });
+  }
+});
+
+// Handle Part 2 submission
+app.view('user_details_part_two', async ({ ack, body, view, client }) => {
+  await ack();
+  try {
+    await formLogic.handlePartTwoSubmission(client, body, view);
+  } catch (error) {
+    console.error('Error handling Part Two submission:', error);
+    await client.chat.postMessage({
+      channel: body.user.id,
+      text: "There was an error processing your submission. Please try again later."
+    });
+  }
 });
 
 // Start the app
 (async () => {
   try {
-    // Get the bot's user ID and name when the app starts
     const botInfo = await utils.getBotInfo(app);
     if (!botInfo) {
       throw new Error('Failed to get bot info');
