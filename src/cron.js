@@ -287,7 +287,7 @@ function init(app) {
   cron.schedule("0 0 * * 0", runWeeklyUserReportGeneration);
   cron.schedule("0 12 * * *", checkAndNotifyInactiveUsers);
   cron.schedule("0 12 * * *", checkAndSendCustomizedNutritionPlans);
-  cron.schedule("* * * * *", checkAndSendCustomizedExercisePlans);
+  cron.schedule("0 12 * * *", checkAndSendCustomizedExercisePlans);
 
 }
 

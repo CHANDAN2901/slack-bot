@@ -28,11 +28,11 @@ const utils = {
     return Buffer.from(response.data);
   },
 
-  generateICSFile:  (events, filename) => {
+  generateICSFile: (events, filename) => {
     try {
       console.log(`Generating ICS file: ${filename}`);
       console.log(`Number of events: ${events.length}`);
-  
+
       // Validate events
       events = events.map(event => {
         if (!event.start || !Array.isArray(event.start) || event.start.length !== 5) {
@@ -46,34 +46,34 @@ const utils = {
         }
         return event;
       });
-  
+
       const { error, value } = createEvents(events);
-  
+
       if (error) {
         console.error(`Error creating ICS events:`, error);
         throw new Error(`Error creating ICS events: ${error}`);
       }
-  
+
       // Ensure proper line endings
       let icsContent = value.replace(/\r?\n/g, '\r\n');
-  
+
       // Validate overall structure
       if (!icsContent.startsWith('BEGIN:VCALENDAR') || !icsContent.endsWith('END:VCALENDAR\r\n')) {
         throw new Error('Invalid ICS file structure');
       }
-  
+
       console.log(`ICS content generated. Length: ${icsContent.length}`);
       console.log(`First 100 characters of ICS content:`, icsContent.substring(0, 100));
-  
+
       fs.writeFileSync(filename, icsContent, { encoding: 'utf8' });
       console.log(`File written successfully: ${filename}`);
-  
+
       // Validate the written file
       const writtenContent = fs.readFileSync(filename, 'utf8');
       if (writtenContent !== icsContent) {
         throw new Error('File content does not match generated content');
       }
-  
+
       return filename;
     } catch (error) {
       console.error('Error generating ICS file:', error);
@@ -81,94 +81,143 @@ const utils = {
     }
   },
 
+  // convertExercisePlanToICSEvents: (plan, startDate) => {
+  //   const events = [];
+  //   const lines = plan.split('\n');
+  //   const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+  //   let currentDay = -1;
+  //   let currentTime = new Date(startDate);
 
-  convertExercisePlanToICSEvents : (plan, startDate) => {
-    const events = [];
-    const lines = plan.split('\n');
-    const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-    let currentDay = -1;
-  
-    for (const line of lines) {
-      const dayIndex = daysOfWeek.findIndex(day => line.includes(day));
-      if (dayIndex !== -1) {
-        currentDay = dayIndex;
-      } else if (currentDay !== -1 && line.includes('Exercise')) {
-        const [exerciseType, ...exerciseInfoParts] = line.split(':');
-        const exerciseInfo = exerciseInfoParts.join(':').trim();
-        
-        // Extract exercise details
-        const mainExercise = exerciseInfo.split('-')[0].trim();
-        const repsMatch = exerciseInfo.match(/(\d+)\s*x\s*(\d+)/);
-        const timeMatch = exerciseInfo.match(/(\d+)\s*(?:minutes?|seconds?)/i);
-        const restMatch = exerciseInfo.match(/(\d+)\s*seconds?\s*rest/i);
-        
-        let description = `${mainExercise}\n`;
-        if (repsMatch) {
-          description += `Sets x Reps: ${repsMatch[0]}\n`;
-        }
-        if (timeMatch) {
-          description += `Duration: ${timeMatch[0]}\n`;
-        }
-        if (restMatch) {
-          description += `Rest: ${restMatch[0]}\n`;
-        }
-  
-        // Create a detailed title that includes all information
-        const detailedTitle = `${exerciseType.replace(/\*/g, '').trim()}: ${mainExercise} - ${description.replace(/\n/g, ' ')}`;
-  
-        events.push({
-          title: detailedTitle,
-          description: description.trim(),
-          start: [
-            startDate.getFullYear(),
-            startDate.getMonth() + 1,
-            startDate.getDate() + currentDay,
-            18,  // Assuming exercises are done at 6 PM
-            0
-          ],
-          duration: { hours: 1 },
-        });
-      }
-    }
-    return events;
-  },
-  
+  //   for (const line of lines) {
+  //     const dayIndex = daysOfWeek.findIndex(day => line.includes(day));
+  //     if (dayIndex !== -1) {
+  //       currentDay = dayIndex;
+  //       currentTime = new Date(startDate);
+  //       currentTime.setDate(currentTime.getDate() + currentDay);
+  //       currentTime.setHours(18, 0, 0, 0); // Reset to 6 PM for each day
+  //     } else if (currentDay !== -1 && line.trim().startsWith('* **Exercise')) {
+  //       const exerciseMatch = line.match(/\* \*\*Exercise \d+:\s*(.*?)\s*-\s*(.*?)\s*-\s*(.*?)\s*-\s*(.*?)\*\*/);
+  //       if (exerciseMatch) {
+  //         const [, exerciseName, sets, duration, rest] = exerciseMatch;
+
+  //         let description = `${exerciseName}\n`;
+  //         description += `Sets/Duration: ${sets}\n`;
+  //         if (duration) description += `Duration: ${duration}\n`;
+  //         if (rest) description += `Rest: ${rest}\n`;
+
+  //         // Extract focus or additional info
+  //         const focusMatch = lines[lines.indexOf(line) + 1].match(/\s*\*\s*(.*)/);
+  //         if (focusMatch) {
+  //           description += `Focus: ${focusMatch[1]}\n`;
+  //         }
+
+  //         // Calculate event duration
+  //         let eventDuration = { hours: 0, minutes: 30 }; // Default to 30 minutes
+  //         const durationMatch = duration.match(/(\d+)\s*mins?/);
+  //         if (durationMatch) {
+  //           const durationValue = parseInt(durationMatch[1]);
+  //           eventDuration = { hours: Math.floor(durationValue / 60), minutes: durationValue % 60 };
+  //         }
+
+  //         events.push({
+  //           title: `Exercise: ${exerciseName}`,
+  //           description: description.trim(),
+  //           start: [
+  //             currentTime.getFullYear(),
+  //             currentTime.getMonth() + 1,
+  //             currentTime.getDate(),
+  //             currentTime.getHours(),
+  //             currentTime.getMinutes()
+  //           ],
+  //           duration: eventDuration,
+  //         });
+
+  //         // Update currentTime for the next exercise
+  //         currentTime = new Date(currentTime.getTime() + (eventDuration.hours * 60 + eventDuration.minutes) * 60000);
+  //       }
+  //     }
+  //   }
+  //   return events;
+  // },
 
   convertExercisePlanToICSEvents: (plan, startDate) => {
+    console.log("Starting event conversion...");
     const events = [];
     const lines = plan.split('\n');
     const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
     let currentDay = -1;
+    let currentTime = new Date(startDate);
+    let eventDetails = {};
+
+    const formatEventDescription = (details) => {
+      let description = '';
+      if (details.description) description += `Description: ${details.description}\n`;
+      if (details.sets) description += `Sets: ${details.sets}\n`;
+      if (details.reps) description += `Reps: ${details.reps}\n`;
+      if (details.duration) description += `Duration: ${details.duration}\n`;
+      if (details['rest time']) description += `Rest Time: ${details['rest time']}\n`;
+      return description.trim();
+    };
 
     for (const line of lines) {
+      console.log("Processing line: ", line);
+
       const dayIndex = daysOfWeek.findIndex(day => line.includes(day));
       if (dayIndex !== -1) {
+        console.log("Detected day: ", daysOfWeek[dayIndex]);
         currentDay = dayIndex;
-      } else if (currentDay !== -1 && line.includes('Exercise')) {
-        const [exerciseType, ...exerciseInfoParts] = line.split(':');
-        const exerciseInfo = exerciseInfoParts.join(':').trim();
-
-        // Extract the main exercise name (assuming it's the first part before any parentheses or dashes)
-        const mainExercise = exerciseInfo.split(/[(-]/)[0].trim();
-
-        // Create a concise title
-        const conciseTitle = `${exerciseType.replace(/\*/g, '').trim()}: ${mainExercise}`;
-
-        events.push({
-          title: conciseTitle,
-          start: [
-            startDate.getFullYear(),
-            startDate.getMonth() + 1,
-            startDate.getDate() + currentDay,
-            18,  // Assuming exercises are done at 6 PM
-            0
-          ],
-          duration: { hours: 1 },
-        });
+        currentTime = new Date(startDate);
+        currentTime.setDate(currentTime.getDate() + currentDay);
+        currentTime.setHours(8, 0, 0, 0); // Start at 8 AM
+        eventDetails = {};
+      } else if (currentDay !== -1) {
+        const titleMatch = line.match(/^\s*\*\*Exercise \d+:\*\*$/);
+        if (titleMatch) {
+          // Start a new event
+          if (Object.keys(eventDetails).length > 0) {
+            addEvent(events, eventDetails, currentTime);
+          }
+          eventDetails = {};
+        } else {
+          const match = line.match(/^\s*-\s*\*\*(.*?):\*\*\s*(.*)/);
+          if (match) {
+            const [, key, value] = match;
+            eventDetails[key.toLowerCase()] = value.trim();
+            console.log(`Event ${key} detected: `, value.trim());
+          }
+        }
       }
     }
+
+    // Add the last event if exists
+    if (Object.keys(eventDetails).length > 0) {
+      addEvent(events, eventDetails, currentTime);
+    }
+
+    function addEvent(events, details, time) {
+      const duration = parseInt(details.duration) || 30; // Default to 30 minutes if not specified
+      events.push({
+        title: details.title || 'Untitled Exercise',
+        description: formatEventDescription(details),
+        start: [
+          time.getFullYear(),
+          time.getMonth() + 1,
+          time.getDate(),
+          time.getHours(),
+          time.getMinutes()
+        ],
+        duration: { hours: Math.floor(duration / 60), minutes: duration % 60 },
+      });
+      console.log("Event added: ", details.title);
+
+      // Move to the next time slot
+      time.setMinutes(time.getMinutes() + duration);
+    }
+
+    console.log("Conversion complete. Events: ", JSON.stringify(events, null, 2));
     return events;
   },
+
 
   sendDirectMessageWithAttachment: async (userId, message, filePath) => {
     try {

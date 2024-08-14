@@ -146,7 +146,7 @@ const aiOps = {
       4. Equipment recommendations and usage tips related to the purchased product.
       5. Motivational tips and strategies to help the user stay engaged and consistent with the plan.
       
-      Please provide the customized plan in a structured format, that can be easily shared with the user.
+      Please provide the customized plan in a structured format, that can be easily shared with the user. 
       
       User Profile:
       ${userProfileText}
@@ -339,7 +339,7 @@ const aiOps = {
 
   generateExerciseSuggestion: async (userProfile, product) => {
     try {
-      const userProfileText = `
+        const userProfileText = `
         Age: ${userProfile.age}
         Height: ${userProfile.height}
         Weight: ${userProfile.weight}
@@ -348,42 +348,59 @@ const aiOps = {
         Allergies: ${JSON.stringify(userProfile.allergies, null, 2)}
         Diet Preferences: ${JSON.stringify(userProfile.diet_preferences, null, 2)}
         Exercise Preferences: ${JSON.stringify(userProfile.exercise_preferences, null, 2)}
-      `;
-  
-      const productString = JSON.stringify(product, null, 2);
-  
-      const prompt = `As a personal trainer, create a personalized 5-day (Monday to Friday) exercise routine for the user based on the product they purchased. The routine should be tailored to the user's fitness goals and preferences.
-  
-      Output the plan in the following format:
-      Monday:
-      Exercise 1: [Name] - [Sets] x [Reps] - [Rest Time] seconds rest
-      Exercise 2: [Name] - [Sets] x [Reps] - [Rest Time] seconds rest
-      ... (include 3-5 exercises per day)
-  
-      Tuesday:
-      ... (repeat for Wednesday, Thursday, Friday)
-  
-      Weekend Activity Suggestions: [2-3 ideas for staying active on weekends]
-      Safety Tips: [2-3 bullet points on safety and proper form]
-      Progression: [1-2 sentences on how to increase intensity over time]
-  
-      For each exercise, specify the number of sets, repetitions, rest time, and duration if applicable. This will ensure the plan can be easily converted into calendar events with specific time allocations.
-  
-      User Profile:
-      ${userProfileText}
-  
-      Purchased Product:
-      ${productString}`;
-  
-      const result = await model.generateContent(prompt);
-      return result.response.text();
-    } catch (error) {
-      console.error('Error generating exercise suggestion:', error);
-      return 'Error generating exercise suggestion';
-    }
-  },
-  
+        `;
 
+        const productString = JSON.stringify(product, null, 2);
+
+        const prompt = `As a personal trainer, create a personalized 5-day (Monday to Friday) exercise routine for the user based on the product they purchased. The routine should be tailored to the user's fitness goals and preferences.
+
+        Output the plan in the following format:
+
+        Monday:
+        Exercise 1:
+        - **Title:** [Exercise Name]
+        - **Description:** [Brief description of the exercise]
+        - **Sets:** [Number of sets]
+        - **Reps:** [Number of reps]
+        - **Duration:** [Duration in minutes, if applicable]
+        - **Rest Time:** [Rest time in seconds]
+
+        Exercise 2:
+        - **Title:** [Exercise Name]
+        - **Description:** [Brief description of the exercise]
+        - **Sets:** [Number of sets]
+        - **Reps:** [Number of reps]
+        - **Duration:** [Duration in minutes, if applicable]
+        - **Rest Time:** [Rest time in seconds]
+
+        ... (repeat for Tuesday, Wednesday, Thursday, Friday)
+
+        Weekend Activity Suggestions:
+        - [Suggestion 1]
+        - [Suggestion 2]
+        - [Suggestion 3]
+
+        Safety Tips:
+        - [Tip 1]
+        - [Tip 2]
+        - [Tip 3]
+
+        Progression:
+        [1-2 sentences on how to increase intensity over time]
+
+        User Profile:
+        ${userProfileText}
+
+        Purchased Product:
+        ${productString}`;
+
+        const result = await model.generateContent(prompt);
+        return result.response.text();
+    } catch (error) {
+        console.error('Error generating exercise suggestion:', error);
+        return 'Error generating exercise suggestion';
+    }
+},
 
 };
 

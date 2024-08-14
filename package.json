@@ -17,6 +17,8 @@
     "@slack/web-api": "^7.3.2",
     "axios": "^1.7.2",
     "canvas": "^2.11.2",
+    "chromadb": "^1.8.1",
+    "chromadb-default-embed": "^2.13.2",
     "dotenv": "^16.4.5",
     "ics": "^3.7.6",
     "mysql2": "^3.10.3",
