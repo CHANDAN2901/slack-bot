@@ -15,6 +15,9 @@ const receiver = new ExpressReceiver({
 const app = new App({
   token: config.SLACK_BOT_TOKEN,
   receiver,
+  processBeforeResponse: true,
+  timeoutResponse: 10000,
+  logLevel: 'DEBUG', // Add this line for more detailed logging
 });
 
 // Initialize event handlers, command handlers, and cron jobs

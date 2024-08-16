@@ -2,13 +2,77 @@ const database = require('./database');
 const { partOneModal, partTwoModal } = require('./userDetailsModals');
 const { startSubscriptionQuestionnaire } = require('./subscriptionLogic');
 
+// const handleUserDetailsCommand = async (client, body) => {
+//     try {
+//         const result = await client.views.open({
+//             trigger_id: body.trigger_id,
+//             view: partOneModal
+//         });
+//         console.log('User details form opened for user:', body.user.id);
+//         return result;
+//     } catch (error) {
+//         console.error('Error opening user details modal:', error);
+//         throw error;
+//     }
+// };
+
+
+// const handleUserDetailsCommand = async (client, body) => {
+//     console.log('Received body:', JSON.stringify(body, null, 2));
+//     try {
+//         if (!body || !body.user_id) {
+//             console.error('Invalid body structure:', body);
+//             throw new Error('Invalid body structure');
+//         }
+//         const result = await client.views.open({
+//             trigger_id: body.trigger_id,
+//             view: partOneModal
+//         });
+//         console.log('User details form opened for user:', body.user_id);
+//         return result;
+//     } catch (error) {
+//         console.error('Error opening user details modal:', error);
+//         throw error;
+//     }
+// };
+
 const handleUserDetailsCommand = async (client, body) => {
+    console.log('Received body:', JSON.stringify(body, null, 2));
     try {
+        if (!body) {
+            console.error('Body is undefined or null');
+            throw new Error('Body is undefined or null');
+        }
+        if (typeof body !== 'object') {
+            console.error('Body is not an object:', typeof body);
+            throw new Error('Body is not an object');
+        }
+
+        let userId, triggerId;
+
+        if (body.user_id) {
+            // This is likely from a slash command
+            userId = body.user_id;
+            triggerId = body.trigger_id;
+        } else if (body.user && body.user.id) {
+            // This is likely from a button click
+            userId = body.user.id;
+            triggerId = body.trigger_id;
+        } else {
+            console.error('Unable to determine user_id from body:', body);
+            throw new Error('Unable to determine user_id from body');
+        }
+
+        if (!triggerId) {
+            console.error('Body is missing trigger_id:', body);
+            throw new Error('Body is missing trigger_id');
+        }
+
         const result = await client.views.open({
-            trigger_id: body.trigger_id,
+            trigger_id: triggerId,
             view: partOneModal
         });
-        console.log('User details form opened for user:', body.user.id);
+        console.log('User details form opened for user:', userId);
         return result;
     } catch (error) {
         console.error('Error opening user details modal:', error);

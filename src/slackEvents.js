@@ -201,7 +201,57 @@ const aiOps = require("./ai");
 const utils = require("./utils");
 const formLogic = require('./formLogic');
 
+async function showTypingIndicator(client, channel) {
+  return await client.chat.postMessage({
+    channel: channel,
+    text: "",
+    blocks: [
+      {
+        type: "context",
+        elements: [
+          {
+            type: "mrkdwn",
+            text: ":hourglass: Typing...",
+          },
+        ],
+      },
+    ],
+  });
+}
+
 function init(app) {
+
+  app.event('message', async ({ event, client }) => {
+    // Check if it's a direct message (im = direct message channel type)
+    if (event.channel_type === 'im') {
+      try {
+        const typingIndicator = await showTypingIndicator(client, event.channel);
+
+        // Process the message similarly to how you process mentions
+        // const { name: username, email } = await utils.fetchUserInfo(app, event.user);
+        const userProfile = await dbOps.getCachedUserProfile(event.user);
+        const userContext = await dbOps.getLastMessages(event.channel, 5);
+        
+        // Generate response
+        const response = await aiOps.generateResponse(event.text, userContext, userProfile);
+        
+        // Send the response
+        await client.chat.postMessage({
+          channel: event.channel,
+          ts: typingIndicator.ts,
+          text: response,
+          parse: "mrkdwn",
+          blocks: [],
+        });
+        
+        // Store the message
+        await dbOps.storeMessage(event.user, event.channel, event.text);
+      } catch (error) {
+        console.error("Error processing direct message:", error);
+      }
+    }
+  });
+  
   app.event("app_mention", async ({ event, context, client }) => {
     console.log("Received potential app mention:", event);
 
@@ -211,22 +261,7 @@ function init(app) {
     }
 
     try {
-      // Start typing indicator
-      const typingIndicator = await client.chat.postMessage({
-        channel: event.channel,
-        text: "",
-        blocks: [
-          {
-            type: "context",
-            elements: [
-              {
-                type: "mrkdwn",
-                text: ":hourglass: Typing...",
-              },
-            ],
-          },
-        ],
-      });
+      const typingIndicator = await showTypingIndicator(client, event.channel);
 
       // Check message length
       if (event.text.length > 2000) {
@@ -267,7 +302,7 @@ function init(app) {
       const contextRelevance = await aiOps.checkMessageContext(messageContent, userContext);
 
       // Fetch user profile
-      const userProfile = await dbOps.getUserProfile(event.user);
+      const userProfile = await dbOps.getCachedUserProfile(event.user);
 
       let response;
       let shouldStoreMessage = false;
@@ -387,6 +422,7 @@ function init(app) {
       console.log('Modal opened successfully');
     } catch (error) {
       console.error('Error handling user details button click:', error);
+      // You might want to send a message to the user here informing them of the error
     }
   });
 
