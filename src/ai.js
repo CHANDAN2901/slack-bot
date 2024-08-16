@@ -32,45 +32,53 @@ const aiOps = {
     try {
       // Convert the user profile data to a plain text string
       const goalString = JSON.stringify(userProfile.goal, null, 2);
-      // const allergiesString = JSON.stringify(userProfile.allergies, null, 2);
       const dietPreferencesString = JSON.stringify(userProfile.diet_preferences, null, 2);
       const exercisePreferencesString = JSON.stringify(userProfile.exercise_preferences, null, 2);
-
+  
       const userProfileText = `
-          Age: ${userProfile.age}
-          Height: ${userProfile.height}
-          Weight: ${userProfile.weight}
-          Goal: ${goalString}
-          Daily Routine: ${userProfile.daily_routine}
-          Allergies: ${userProfile.allergies}
-          Diet Preferences: ${dietPreferencesString}
-          Exercise Preferences: ${exercisePreferencesString}
-        `;
-
-      const prompt = `As a knowledgeable fitness coach, provide a helpful and encouraging response to this query. Include relevant advice or information based on the user's profile. Use the following Slack markup format:
-        
-        > Give a response in markdown format
-        
-        Previous conversation:
-        ${context.join('\n')}
-        
-        User Profile:
-        ${userProfileText}
-        
-        User: ${message}
-        Coach:`;
-
+        Age: ${userProfile.age}
+        Height: ${userProfile.height}
+        Weight: ${userProfile.weight}
+        Goal: ${goalString}
+        Daily Routine: ${userProfile.daily_routine}
+        Allergies: ${userProfile.allergies}
+        Diet Preferences: ${dietPreferencesString}
+        Exercise Preferences: ${exercisePreferencesString}
+      `;
+  
+      const prompt = `You are a fitness coach. Provide a well-formatted and helpful response in plain text that Slack can render properly (no visible markdown). 
+      The response should be friendly, encouraging, and based on the user's profile.
+      
+      Previous conversation:
+      ${context.join('\n')}
+      
+      User Profile:
+      ${userProfileText}
+      
+      User: ${message}
+      
+      Provide the response directly in readable text with no markdown symbols like "**", "__", or "_". Format it so that it looks good in Slack using blockquotes and sections for readability.`;
+      
+      // Call the AI model
       const result = await model.generateContent(prompt);
-      console.log("Personalized response: ", result.response.text());
-
-      return result.response.text();
+      let coachResponse = result.response.text();
+  
+      // Remove any remaining markdown formatting that could be visible in Slack
+      coachResponse = coachResponse
+        .replace(/\*\*(.*?)\*\*/g, '*$1*')  // Converts bold from Markdown to Slack bold format
+        .replace(/\_\_(.*?)\_\_/g, '*$1*')  // Converts underlines (which Slack doesn't support) to bold
+        .replace(/(?:\r\n|\r|\n)/g, '\n');  // Normalize line breaks
+  
+      console.log("Formatted Slack response: ", coachResponse);
+  
+      return coachResponse;
+  
     } catch (error) {
       console.error('Error generating response:', error);
-      return 'Error generating response';
+      return `Sorry, an error occurred while generating your response: ${error.message}`;
     }
   },
-
-
+  
   analyzeImage: async (imageBuffer, mimeType) => {
     try {
       if (mimeType === 'image/png') {
@@ -111,12 +119,6 @@ const aiOps = {
     console.log("Summarised Chat: ", result.response.text());
     return result.response.text();
   },
-
-  // generateUserWeeklySummary: async (messages) => {
-  //   const prompt = `Generate a weekly fitness summary report based on the following user messages. Include key achievements, areas for improvement, and personalized recommendations:\n\n${messages.join('\n')}`;
-  //   const result = await model.generateContent(prompt);
-  //   return result.response.text();
-  // },
 
   generateUserWeeklySummary: async (messages) => {
     const prompt = `Generate a weekly fitness summary report based on the following user messages. The report should be structured in the following format:
