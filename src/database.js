@@ -38,6 +38,30 @@ const dbOps = {
     }
   },
 
+  getCachedUserProfile: async (userId) => {
+    try {
+      // Try to get the user profile from Redis
+      const cachedProfile = await redisClient.get(`user_profile:${userId}`);
+  
+      if (cachedProfile) {
+        // If found in cache, parse and return it
+        return JSON.parse(cachedProfile);
+      } else {
+        // If not in cache, fetch from database
+        const userProfile = await dbOps.getUserProfile(userId);
+  
+        // Store the profile in Redis with an expiration of 1 hour (3600 seconds)
+        await redisClient.setEx(`user_profile:${userId}`, 3600, JSON.stringify(userProfile));
+  
+        return userProfile;
+      }
+    } catch (error) {
+      console.error("Error getting cached user profile:", error);
+      // If there's an error with Redis, fall back to database query
+      return await dbOps.getUserProfile(userId);
+    }
+  },
+
   clearUserContext: async (userId) => {
     try {
       // Get all channels where the user has messages
@@ -269,6 +293,7 @@ const dbOps = {
   },
 
   getUserProfile: async (userId) => {
+    console.log("UserId: ", userId);
     try {
       const [userProfile] = await pool.query(
         "SELECT * FROM users WHERE user_id = ?",
@@ -420,23 +445,49 @@ const dbOps = {
   },
 
   // Add this to your dbOps object
+  // storeExerciseLog: async (userId, channelId, content) => {
+  //   const connection = await pool.getConnection();
+  //   try {
+  //     await connection.beginTransaction();
+
+  //     // Call the handleMomentum procedure
+  //     await connection.query('CALL handleMomentum(?, ?, ?)', [userId, channelId, content]);
+
+  //     // Store the message
+  //     content = content.length > 2000 ? content.slice(0, 1997) + "..." : content;
+  //     const trimmedContent = content.replace(/^<@[A-Z0-9]+>\s*/, "");
+
+  //     // await connection.query(
+  //     //   "INSERT INTO messages (user_id, channel_id, content, created_at, is_log) VALUES (?, ?, ?, NOW(), 1)",
+  //     //   [userId, channelId, trimmedContent]
+  //     // );
+
+  //     await connection.commit();
+  //     console.log("Exercise log stored successfully and momentum updated");
+  //   } catch (error) {
+  //     await connection.rollback();
+  //     console.error("Error storing exercise log and updating momentum:", error);
+  //     throw error;
+  //   } finally {
+  //     connection.release();
+  //   }
+  // },
+
+
   storeExerciseLog: async (userId, channelId, content) => {
     const connection = await pool.getConnection();
     try {
       await connection.beginTransaction();
-
-      // Call the handleMomentum procedure
+  
+      // First, ensure the channel exists
+      await connection.query(
+        "INSERT IGNORE INTO channels (channel_id) VALUES (?)",
+        [channelId]
+      );
+  
+      // Now call the handleMomentum procedure
       await connection.query('CALL handleMomentum(?, ?, ?)', [userId, channelId, content]);
-
-      // Store the message
-      content = content.length > 2000 ? content.slice(0, 1997) + "..." : content;
-      const trimmedContent = content.replace(/^<@[A-Z0-9]+>\s*/, "");
-
-      // await connection.query(
-      //   "INSERT INTO messages (user_id, channel_id, content, created_at, is_log) VALUES (?, ?, ?, NOW(), 1)",
-      //   [userId, channelId, trimmedContent]
-      // );
-
+  
       await connection.commit();
       console.log("Exercise log stored successfully and momentum updated");
     } catch (error) {
@@ -447,6 +498,8 @@ const dbOps = {
       connection.release();
     }
   },
+
+  
 
 };
 

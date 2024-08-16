@@ -67,14 +67,34 @@ function init(app) {
     }
   });
 
+  // app.command('/update-profile', async ({ ack, body, client }) => {
+  //   await ack();
+  //   try {
+  //     await formLogic.handleUserDetailsCommand(client, body);
+  //   } catch (error) {
+  //     console.error('Error handling /update-profile command:', error);
+  //   }
+  // });
+
   app.command('/update-profile', async ({ ack, body, client }) => {
     await ack();
     try {
-      await formLogic.handleUserDetailsCommand(client, body);
+        console.log('Received /update-profile command. Body:', JSON.stringify(body, null, 2));
+        await formLogic.handleUserDetailsCommand(client, body);
     } catch (error) {
-      console.error('Error handling /update-profile command:', error);
+        console.error('Error handling /update-profile command:', error);
+        // Send an error message to the user
+        try {
+            await client.chat.postEphemeral({
+                channel: body.channel_id,
+                user: body.user_id,
+                text: "Sorry, there was an error processing your command. Please try again later or contact support if the issue persists."
+            });
+        } catch (sendError) {
+            console.error('Error sending error message to user:', sendError);
+        }
     }
-  });
+});
 
   app.command('/supporthub', async ({ command, ack, respond, client }) => {
     // Acknowledge the command immediately
@@ -112,6 +132,7 @@ function init(app) {
     
     try {
       const { user_id, channel_id, text } = command;
+      console.log("Commad and channel details: ", command);
 
       if (!text) {
         await respond({

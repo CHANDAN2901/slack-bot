@@ -9,57 +9,53 @@ const { error } = require("pdf-lib");
 const slackClient = new WebClient(process.env.SLACK_BOT_TOKEN);
 
 async function runHourlyChatSummarization() {
-  console.log("Running chat summarization");
-  try {
-    if (!dbOps.pool) {
-      throw new Error("Database pool is not initialized");
-    }
-    const [channels] = await dbOps.pool.query(
-      "SELECT DISTINCT channel_id FROM messages WHERE created_at >= NOW() - INTERVAL 1 MINUTE"
+  console.log("Running chat summarization at", new Date());
+
+try {
+  const [channels] = await dbOps.pool.query(
+    "SELECT DISTINCT channel_id FROM messages WHERE created_at >= NOW() - INTERVAL 1 MINUTE"
+  );
+  console.log("Channels found:", channels);
+
+  for (const channel of channels) {
+    console.log(`Processing channel: ${channel.channel_id}`);
+    
+    const startTime = new Date(Date.now() - 3600000);
+    const endTime = new Date();
+    const [messages] = await dbOps.pool.query(
+      "SELECT user_id, content FROM messages WHERE channel_id = ? AND created_at BETWEEN ? AND ?",
+      [channel.channel_id, startTime, endTime]
     );
 
-    for (const channel of channels) {
-      const startTime = new Date(Date.now() - 3600000);
-      const endTime = new Date();
-      const [messages] = await dbOps.pool.query(
-        "SELECT user_id, content FROM messages WHERE channel_id = ? AND created_at BETWEEN ? AND ?",
-        [channel.channel_id, startTime, endTime]
-      );
+    console.log(`Messages found for channel ${channel.channel_id}:`, messages.length);
 
-      if (messages.length === 0) continue;
+    if (messages.length === 0) continue;
 
-      const channelSummary = await aiOps.summarizeChat(
-        messages.map((m) => m.content)
-      );
+    const channelSummary = await aiOps.summarizeChat(
+      messages.map((m) => m.content)
+    );
+    console.log("Channel Summary:", channelSummary);
 
-      if (channelSummary) {
-        await dbOps.storeSummary(
-          channel.channel_id,
-          channelSummary,
-          startTime,
-          endTime
-        );
-        // await utils.sendSlackMessage(channel.channel_id, `Here's a summary of the fitness discussion in the last minute:\n\n${channelSummary}`);
-      }
-
-      const userMessages = messages.reduce((acc, m) => {
-        if (!acc[m.user_id]) acc[m.user_id] = [];
-        acc[m.user_id].push(m.content);
-        return acc;
-      }, {});
-
-      for (const [userId, userMsgs] of Object.entries(userMessages)) {
-        const userSummary = await aiOps.summarizeChat(userMsgs);
-        await dbOps.storeHourlyUserSummary(
-          userId,
-          channel.channel_id,
-          userSummary
-        );
-      }
+    if (channelSummary) {
+      await dbOps.storeSummary(channel.channel_id, channelSummary, startTime, endTime);
     }
-  } catch (error) {
-    console.error("Error in runHourlyChatSummarization:", error);
+
+    // Process user-specific summaries
+    const userMessages = messages.reduce((acc, m) => {
+      if (!acc[m.user_id]) acc[m.user_id] = [];
+      acc[m.user_id].push(m.content);
+      return acc;
+    }, {});
+
+    for (const [userId, userMsgs] of Object.entries(userMessages)) {
+      const userSummary = await aiOps.summarizeChat(userMsgs);
+      console.log(`User Summary for ${userId}:`, userSummary);
+      await dbOps.storeHourlyUserSummary(userId, channel.channel_id, userSummary);
+    }
   }
+} catch (error) {
+  console.error("Error in runHourlyChatSummarization:", error);
+}
 }
 
 async function runWeeklyUserReportGeneration() {
@@ -158,11 +154,6 @@ async function runWeeklyUserReportGeneration() {
 async function checkAndNotifyInactiveUsers() {
   console.log("Checking for inactive users");
   try {
-    // const [inactiveUsers] = await dbOps.pool.query(`
-    //   SELECT DISTINCT u.user_id, u.email
-    //   FROM users u
-    // `);
-
     console.log("Inactive User: ", inactiveUsers);
     const [inactiveUsers] = await dbOps.pool.query(`
       SELECT DISTINCT u.user_id, u.email
@@ -286,8 +277,8 @@ function init(app) {
   cron.schedule("0 * * * *", runHourlyChatSummarization);
   cron.schedule("0 0 * * 0", runWeeklyUserReportGeneration);
   cron.schedule("0 12 * * *", checkAndNotifyInactiveUsers);
-  cron.schedule("0 12 * * *", checkAndSendCustomizedNutritionPlans);
-  cron.schedule("0 12 * * *", checkAndSendCustomizedExercisePlans);
+  cron.schedule("0 0 * * 0", checkAndSendCustomizedNutritionPlans);
+  cron.schedule("0 0 * * 0", checkAndSendCustomizedExercisePlans);
 
 }
 
