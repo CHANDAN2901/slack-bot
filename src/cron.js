@@ -11,51 +11,51 @@ const slackClient = new WebClient(process.env.SLACK_BOT_TOKEN);
 async function runHourlyChatSummarization() {
   console.log("Running chat summarization at", new Date());
 
-try {
-  const [channels] = await dbOps.pool.query(
-    "SELECT DISTINCT channel_id FROM messages WHERE created_at >= NOW() - INTERVAL 1 MINUTE"
-  );
-  console.log("Channels found:", channels);
-
-  for (const channel of channels) {
-    console.log(`Processing channel: ${channel.channel_id}`);
-    
-    const startTime = new Date(Date.now() - 3600000);
-    const endTime = new Date();
-    const [messages] = await dbOps.pool.query(
-      "SELECT user_id, content FROM messages WHERE channel_id = ? AND created_at BETWEEN ? AND ?",
-      [channel.channel_id, startTime, endTime]
+  try {
+    const [channels] = await dbOps.pool.query(
+      "SELECT DISTINCT channel_id FROM messages WHERE created_at >= NOW() - INTERVAL 1 MINUTE"
     );
+    console.log("Channels found:", channels);
 
-    console.log(`Messages found for channel ${channel.channel_id}:`, messages.length);
+    for (const channel of channels) {
+      console.log(`Processing channel: ${channel.channel_id}`);
 
-    if (messages.length === 0) continue;
+      const startTime = new Date(Date.now() - 3600000);
+      const endTime = new Date();
+      const [messages] = await dbOps.pool.query(
+        "SELECT user_id, content FROM messages WHERE channel_id = ? AND created_at BETWEEN ? AND ?",
+        [channel.channel_id, startTime, endTime]
+      );
 
-    const channelSummary = await aiOps.summarizeChat(
-      messages.map((m) => m.content)
-    );
-    console.log("Channel Summary:", channelSummary);
+      console.log(`Messages found for channel ${channel.channel_id}:`, messages.length);
 
-    if (channelSummary) {
-      await dbOps.storeSummary(channel.channel_id, channelSummary, startTime, endTime);
+      if (messages.length === 0) continue;
+
+      const channelSummary = await aiOps.summarizeChat(
+        messages.map((m) => m.content)
+      );
+      console.log("Channel Summary:", channelSummary);
+
+      if (channelSummary) {
+        await dbOps.storeSummary(channel.channel_id, channelSummary, startTime, endTime);
+      }
+
+      // Process user-specific summaries
+      const userMessages = messages.reduce((acc, m) => {
+        if (!acc[m.user_id]) acc[m.user_id] = [];
+        acc[m.user_id].push(m.content);
+        return acc;
+      }, {});
+
+      for (const [userId, userMsgs] of Object.entries(userMessages)) {
+        const userSummary = await aiOps.summarizeChat(userMsgs);
+        console.log(`User Summary for ${userId}:`, userSummary);
+        await dbOps.storeHourlyUserSummary(userId, channel.channel_id, userSummary);
+      }
     }
-
-    // Process user-specific summaries
-    const userMessages = messages.reduce((acc, m) => {
-      if (!acc[m.user_id]) acc[m.user_id] = [];
-      acc[m.user_id].push(m.content);
-      return acc;
-    }, {});
-
-    for (const [userId, userMsgs] of Object.entries(userMessages)) {
-      const userSummary = await aiOps.summarizeChat(userMsgs);
-      console.log(`User Summary for ${userId}:`, userSummary);
-      await dbOps.storeHourlyUserSummary(userId, channel.channel_id, userSummary);
-    }
+  } catch (error) {
+    console.error("Error in runHourlyChatSummarization:", error);
   }
-} catch (error) {
-  console.error("Error in runHourlyChatSummarization:", error);
-}
 }
 
 async function runWeeklyUserReportGeneration() {
@@ -82,14 +82,16 @@ async function runWeeklyUserReportGeneration() {
         }
 
         console.log(`Generating summary for user ${user.user_id}`);
+        const userProfile = await dbOps.getUserProfile(user.user_id);
+
         const weeklySummary = await aiOps.generateUserWeeklySummary(
-          userMessages
+          userMessages, userProfile
         );
         console.log(`Storing summary for user ${user.user_id}`);
         await dbOps.storeWeeklyUserSummary(user.user_id, weeklySummary);
 
         console.log(`Generating PDF for user ${user.user_id}`);
-        const pdfBuffer = await utils.generatePDF(weeklySummary, user.user_id);
+        const pdfBuffer = await utils.generatePDF(weeklySummary, user.user_id, userProfile);
 
         if (user.email) {
           console.log(`Sending email to ${user.email}`);
@@ -151,16 +153,79 @@ async function runWeeklyUserReportGeneration() {
   }
 }
 
+// async function checkAndNotifyInactiveUsers() {
+//   console.log("Checking for inactive users");
+//   try {
+//     const [inactiveUsers] = await dbOps.pool.query(`
+//       SELECT DISTINCT u.user_id, u.email
+//       FROM users u
+//       LEFT JOIN messages m ON u.user_id = m.user_id
+//       WHERE m.created_at < NOW() - INTERVAL 24 HOUR OR m.created_at IS NULL
+//     `);
+
+//     console.log("Inactive User: ", inactiveUsers);
+
+
+//     // Fetch all motivation messages
+//     const [motivations] = await dbOps.pool.query(`
+//       SELECT message_text FROM motivational_messages
+//     `);
+
+//     for (const user of inactiveUsers) {
+//       console.log(`Sending notification to inactive user: ${user.user_id}`);
+
+//       // Select a random motivation message
+//       const randomIndex = Math.floor(Math.random() * motivations.length);
+//       const motivationalMessage = motivations[randomIndex].message_text;
+
+//       if (motivationalMessage) {
+//         try {
+//           const conversationResponse = await slackClient.conversations.open({
+//             users: user.user_id,
+//           });
+
+//           if (!conversationResponse.ok) {
+//             throw new Error(`Failed to open conversation: ${conversationResponse.error}`);
+//           }
+
+//           const channelId = conversationResponse.channel.id;
+
+//           await slackClient.chat.postMessage({
+//             channel: channelId,
+//             text: motivationalMessage,
+//           });
+
+//           console.log(`Notification sent to user ${user.user_id} via Slack`);
+//         } catch (slackError) {
+//           console.error(`Error sending Slack notification to user ${user.user_id}:`, slackError);
+//         }
+//       } else {
+//         console.error(`No motivational message available for user ${user.user_id}`);
+//       }
+
+//     }
+//   } catch (error) {
+//     console.error("Error in checkAndNotifyInactiveUsers:", error);
+//   }
+// }
 async function checkAndNotifyInactiveUsers() {
   console.log("Checking for inactive users");
   try {
-    console.log("Inactive User: ", inactiveUsers);
     const [inactiveUsers] = await dbOps.pool.query(`
-      SELECT DISTINCT u.user_id, u.email
+      SELECT DISTINCT u.user_id, u.email, u.momentum_score, 
+             DATEDIFF(NOW(), COALESCE(MAX(m.created_at), u.created_at)) AS days_inactive
       FROM users u
-      LEFT JOIN messages m ON u.user_id = m.user_id
+      LEFT JOIN messages m ON u.user_id = m.user_id AND m.is_log = 1
       WHERE m.created_at < NOW() - INTERVAL 24 HOUR OR m.created_at IS NULL
+      GROUP BY u.user_id, u.email, u.momentum_score
     `);
+
+    console.log("Inactive Users: ", inactiveUsers);
+
+    if (inactiveUsers.length === 0) {
+      console.log('No inactive users found.');
+      return;
+    }
 
     // Fetch all motivation messages
     const [motivations] = await dbOps.pool.query(`
@@ -170,75 +235,48 @@ async function checkAndNotifyInactiveUsers() {
     for (const user of inactiveUsers) {
       console.log(`Sending notification to inactive user: ${user.user_id}`);
 
+      // Calculate lost points
+      const lostPoints = (user.days_inactive * (user.days_inactive - 1)) / 2;
+
       // Select a random motivation message
       const randomIndex = Math.floor(Math.random() * motivations.length);
-      const motivationalMessage = motivations[randomIndex].message_text;
+      const motivationalMessage = motivations[randomIndex]?.message_text || "Don't forget to log your workouts!";
 
-      if (motivationalMessage) {
-        try {
-          const conversationResponse = await slackClient.conversations.open({
-            users: user.user_id,
-          });
+      try {
+        const conversationResponse = await slackClient.conversations.open({
+          users: user.user_id,
+        });
 
-          if (!conversationResponse.ok) {
-            throw new Error(`Failed to open conversation: ${conversationResponse.error}`);
-          }
-
-          const channelId = conversationResponse.channel.id;
-
-          await slackClient.chat.postMessage({
-            channel: channelId,
-            text: motivationalMessage,
-          });
-
-          console.log(`Notification sent to user ${user.user_id} via Slack`);
-        } catch (slackError) {
-          console.error(`Error sending Slack notification to user ${user.user_id}:`, slackError);
+        if (!conversationResponse.ok) {
+          throw new Error(`Failed to open conversation: ${conversationResponse.error}`);
         }
-      } else {
-        console.error(`No motivational message available for user ${user.user_id}`);
+
+        const channelId = conversationResponse.channel.id;
+
+        const message = `Hey there! We noticed you haven't logged a workout in ${user.days_inactive} days. 
+          You've lost ${lostPoints} momentum points. 😟
+
+          Your current momentum score is ${user.momentum_score}.
+
+          ${motivationalMessage}
+
+          Log your next workout to start rebuilding your streak and regain those lost points!`;
+
+        await slackClient.chat.postMessage({
+          channel: channelId,
+          text: message,
+        });
+
+        console.log(`Notification sent to user ${user.user_id} via Slack`);
+      } catch (slackError) {
+        console.error(`Error sending Slack notification to user ${user.user_id}:`, JSON.stringify(slackError, null, 2));
       }
-
-      // Send Slack message
-      // try {
-      //   const conversationResponse = await slackClient.conversations.open({
-      //     users: user.user_id,
-      //   });
-
-      //   if (!conversationResponse.ok) {
-      //     throw new Error(`Failed to open conversation: ${conversationResponse.error}`);
-      //   }
-
-      //   const channelId = conversationResponse.channel.id;
-
-      //   await slackClient.chat.postMessage({
-      //     channel: channelId,
-      //     text: motivationalMessage,
-      //   });
-
-      //   console.log(`Notification sent to user ${user.user_id} via Slack`);
-      // } catch (slackError) {
-      //   console.error(`Error sending Slack notification to user ${user.user_id}:`, slackError);
-      // }
-
-      // Send email notification if email is available
-      // if (user.email) {
-      //   try {
-      //     await utils.sendEmail(
-      //       user.email,
-      //       "Your Fitness Journey Needs You!",
-      //       motivationalMessage
-      //     );
-      //     console.log(`Notification email sent to ${user.email}`);
-      //   } catch (emailError) {
-      //     console.error(`Error sending email notification to ${user.email}:`, emailError);
-      //   }
-      // }
     }
   } catch (error) {
     console.error("Error in checkAndNotifyInactiveUsers:", error);
   }
 }
+
 
 async function checkAndSendCustomizedNutritionPlans() {
   console.log("Starting customized nutrition plan check")
@@ -274,12 +312,20 @@ async function checkAndSendCustomizedExercisePlans() {
 
 
 function init(app) {
-  cron.schedule("0 * * * *", runHourlyChatSummarization);
-  cron.schedule("0 0 * * 0", runWeeklyUserReportGeneration);
-  cron.schedule("0 12 * * *", checkAndNotifyInactiveUsers);
-  cron.schedule("0 0 * * 0", checkAndSendCustomizedNutritionPlans);
-  cron.schedule("0 0 * * 0", checkAndSendCustomizedExercisePlans);
+  // Run hourly chat summarization
+  cron.schedule("30 * * * *", runHourlyChatSummarization);
 
+  // Run weekly user report generation at 5:30 AM IST every Monday
+  cron.schedule("0 5 * * 1", runWeeklyUserReportGeneration);
+
+  // Check and notify inactive users at 5:30 PM IST daily
+  cron.schedule("0 17 * * *", checkAndNotifyInactiveUsers);
+
+  // Check and send customized nutrition plans at 9:30 AM IST every Monday
+  cron.schedule("0 9 * * 1", checkAndSendCustomizedNutritionPlans);
+
+  // Check and send customized exercise plans at 9:30 AM IST every Monday
+  cron.schedule("0 9 * * 1", checkAndSendCustomizedExercisePlans);
 }
 
 module.exports = { init };
