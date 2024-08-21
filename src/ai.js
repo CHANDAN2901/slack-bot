@@ -120,8 +120,84 @@ const aiOps = {
     return result.response.text();
   },
 
-  generateUserWeeklySummary: async (messages) => {
-    const prompt = `Generate a weekly fitness summary report based on the following user messages. The report should be structured in the following format:
+  // generateUserWeeklySummary: async (messages, userProfile) => {
+  //   const userProfileText = `
+  //     Age: ${userProfile.age}
+  //     Height: ${userProfile.height}
+  //     Weight: ${userProfile.weight}
+  //     Goal: ${JSON.stringify(userProfile.goal, null, 2)}
+  //     Daily Routine: ${userProfile.daily_routine}
+  //     Allergies: ${userProfile.allergies}
+  //     Diet Preferences: ${JSON.stringify(userProfile.diet_preferences, null, 2)}
+  //     Exercise Preferences: ${JSON.stringify(userProfile.exercise_preferences, null, 2)}
+  //   `;
+
+  //   const prompt = `As a supportive fitness coach, create a friendly and encouraging weekly fitness summary based on the user's messages and profile. The summary should be well-formatted for Slack (no visible markdown) and include the following sections:
+  
+  //   # Weekly Fitness Report
+  
+  //   ## Key Achievements
+  //   - Achievement 1
+  //   - Achievement 2
+  //   - Achievement 3
+  
+  //   ## Areas for Improvement
+  //   - Area 1
+  //   - Area 2
+  //   - Area 3
+  
+  //   ## Personalized Recommendations
+  //   1. Recommendation 1
+  //   2. Recommendation 2
+  //   3. Recommendation 3
+  
+  //   ## Activity Summary
+  //   - Total workouts: [number]
+  //   - Total duration: [hours] hours
+  //   - Calories burned: [number] kcal
+  
+  //   ## Nutrition Insights
+  //   - Average daily calorie intake: [number] kcal
+  //   - Protein: [number]g
+  //   - Carbs: [number]g
+  //   - Fats: [number]g
+  
+  //   ## Next Week's Goals
+  //   1. Goal 1
+  //   2. Goal 2
+  //   3. Goal 3
+  
+  //   Feel free to adjust the sections based on the available information. If exact data isn't provided, you can use approximations or focus on qualitative insights. The tone should be positive and motivating.
+  
+  //   User Profile:
+  //   ${userProfileText}
+  
+  //   User Messages:
+  //   ${messages.join('\n')}
+  
+  //   Please provide the summary directly in readable text, formatting it for clarity in Slack using spacing and emoji where appropriate.`;
+  
+  //   const result = await model.generateContent(prompt);
+  //   return result.response.text();
+  // },
+
+
+  generateUserWeeklySummary: async (messages, userProfile) => {
+    const userProfileText = `
+      Age: ${userProfile.age}
+      Height: ${userProfile.height}
+      Weight: ${userProfile.weight}
+      Goal: ${JSON.stringify(userProfile.goal, null, 2)}
+      Daily Routine: ${userProfile.daily_routine}
+      Allergies: ${userProfile.allergies}
+      Diet Preferences: ${JSON.stringify(userProfile.diet_preferences, null, 2)}
+      Exercise Preferences: ${JSON.stringify(userProfile.exercise_preferences, null, 2)}
+      Momentum Score: ${userProfile.momentum_score}
+      Current Streak: ${userProfile.current_streak} days
+      Max Streak: ${userProfile.max_streak} days
+    `;
+  
+    const prompt = `As a supportive fitness coach, create a friendly and encouraging weekly fitness summary based on the user's messages, profile, and performance metrics. The summary should be well-formatted for Slack (no visible markdown) and include the following sections:
   
     # Weekly Fitness Report
   
@@ -130,7 +206,12 @@ const aiOps = {
     - Achievement 2
     - Achievement 3
   
-    ## Areas for Improvement
+    ## Progress Highlights
+    - Highlight the user's momentum score and how it has changed
+    - Mention the current streak and congratulate if it's a personal best
+    - Note any improvements in workout frequency or duration
+  
+    ## Areas for Growth
     - Area 1
     - Area 2
     - Area 3
@@ -156,9 +237,15 @@ const aiOps = {
     2. Goal 2
     3. Goal 3
   
-    Please fill in the sections based on the following user messages:
+    Feel free to adjust the sections based on the available information. If exact data isn't provided, you can use approximations or focus on qualitative insights. The tone should be positive and motivating, emphasizing the user's progress and encouraging them to maintain or improve their streak and momentum.
   
-    ${messages.join('\n')}`;
+    User Profile:
+    ${userProfileText}
+  
+    User Messages:
+    ${messages.join('\n')}
+  
+    Please provide the summary directly in readable text, formatting it for clarity in Slack using spacing and emoji where appropriate.`;
   
     const result = await model.generateContent(prompt);
     return result.response.text();

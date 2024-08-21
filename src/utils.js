@@ -77,7 +77,7 @@ const utils = {
     }
   },
 
-  convertNutritionPlanToICSEvents : (nutritionPlan, startDate) => {
+  convertNutritionPlanToICSEvents: (nutritionPlan, startDate) => {
     console.log("Starting event conversion...");
     const events = [];
     const lines = nutritionPlan.split('\n');
@@ -85,7 +85,7 @@ const utils = {
     let currentDay = -1;
     let currentTime = new Date(startDate);
     let mealDetails = {};
-  
+
     // Function to format event description
     const formatEventDescription = (details) => {
       let description = '';
@@ -93,7 +93,7 @@ const utils = {
       if (details.calories) description += `Calories: ${details.calories}\n`;
       return description.trim();
     };
-  
+
     for (const line of lines) {
       const dayIndex = daysOfWeek.findIndex(day => line.includes(day));
       if (dayIndex !== -1) {
@@ -114,12 +114,12 @@ const utils = {
         }
       }
     }
-  
+
     // Add the last meal if exists
     if (Object.keys(mealDetails).length > 0) {
       addEvent(events, mealDetails, currentTime);
     }
-  
+
     // Function to add an event
     function addEvent(events, details, time) {
       const duration = 60; // Default duration of 1 hour
@@ -136,15 +136,15 @@ const utils = {
         duration: { hours: Math.floor(duration / 60), minutes: duration % 60 },
       });
       console.log("Event added: ", details.title);
-  
+
       // Move to the next time slot
       time.setMinutes(time.getMinutes() + duration);
     }
-  
+
     console.log("Conversion complete. Events: ", JSON.stringify(events, null, 2));
     return events;
   },
-  
+
   convertExercisePlanToICSEvents: (plan, startDate) => {
     console.log("Starting event conversion...");
     const events = [];
@@ -275,32 +275,40 @@ const utils = {
     try {
       const userProfile = await dbOps.getUserProfile(userId);
       let plan;
-  
+
       if (newPurchases.length > 0) {
         // If there are purchases, generate a plan based on the first purchase
         const product = await dbOps.getProductDetails(newPurchases[0].product_id);
         plan = await aiOps.generateIndianNutritionPlan(userProfile, product);
+
       } else {
         // If no purchases, generate a general plan
         plan = await aiOps.generateIndianNutritionPlan(userProfile);
       }
-  
+
       console.log("Generated nutrition plan:", plan);
-  
+
+      await dbOps.pool.query(
+        `INSERT INTO plans (user_id, workout_plan, nutrition_plan)
+         VALUES (?, ?, ?)
+         ON DUPLICATE KEY UPDATE nutrition_plan = VALUES(nutrition_plan)`,
+        [userId, null, plan]
+      );
+
       // Generate ICS file
       const startDate = utils.getNextMonday();
       const events = utils.convertNutritionPlanToICSEvents(plan, startDate);
       console.log("Converted events:", JSON.stringify(events, null, 2));
-  
+
       if (events.length === 0) {
         console.warn("No events were extracted from the nutrition plan.");
       }
-  
+
       const filename = `nutrition_plan_${userId}.ics`;
-  
+
       try {
         utils.generateICSFile(events, filename);
-  
+
         // Send message with ICS file
         await utils.sendDirectMessageWithAttachment(
           userId,
@@ -328,7 +336,7 @@ const utils = {
     try {
       const userProfile = await dbOps.getUserProfile(userId);
       let plan;
-  
+
       if (newPurchases.length > 0) {
         // If there are purchases, generate a plan based on the first purchase
         const product = await dbOps.getProductDetails(newPurchases[0].product_id);
@@ -337,23 +345,30 @@ const utils = {
         // If no purchases, generate a general plan
         plan = await aiOps.generateExerciseSuggestion(userProfile);
       }
-  
+
       console.log("Generated exercise plan:", plan);
-  
+
+      await dbOps.pool.query(
+        `INSERT INTO plans (user_id, workout_plan, nutrition_plan)
+         VALUES (?, ?, ?)
+         ON DUPLICATE KEY UPDATE workout_plan = VALUES(workout_plan)`,
+        [userId, plan, null]
+      );
+
       // Generate ICS file
       const startDate = utils.getNextMonday();
       const events = utils.convertExercisePlanToICSEvents(plan, startDate);
       console.log("Converted events:", JSON.stringify(events, null, 2));
-  
+
       if (events.length === 0) {
         console.warn("No events were extracted from the exercise plan.");
       }
-  
+
       const filename = `exercise_plan_${userId}.ics`;
-  
+
       try {
         utils.generateICSFile(events, filename);
-  
+
         // Send message with ICS file
         await utils.sendDirectMessageWithAttachment(
           userId,
@@ -395,6 +410,48 @@ const utils = {
       });
     } catch (error) {
       console.error("Error sending direct message to user:", error);
+    }
+  },
+
+  handleICSDownload: async(client, body, action) =>{
+    const userId = body.user.id;
+    const channelId = body.channel.id;
+    const wantsDownload = action.value === 'yes';
+
+    try {
+      if (wantsDownload) {
+        // Fetch user's subscription status
+        const [nutritionResults] = await dbOps.pool.query(
+          "SELECT user_id FROM users WHERE nutrition_subscription = 1 AND user_id = ?",
+          [userId]
+        );
+        const [exerciseResults] = await dbOps.pool.query(
+          "SELECT user_id FROM users WHERE exercise_subscription = 1 AND user_id = ?",
+          [userId]
+        );
+
+        const isNutritionSubscribed = nutritionResults.length > 0;
+        const isExerciseSubscribed = exerciseResults.length > 0;
+
+        if (isNutritionSubscribed) {
+          await utils.sendCustomizedNutritionPlan(userId);
+        }
+        if (isExerciseSubscribed) {
+          await utils.sendCustomizedExercisePlan(userId);
+        }
+      } else {
+        // Polite response for declining the download
+        await client.chat.postMessage({
+          channel: channelId,
+          text: "No problem! If you'd like to download your plan in the future, just let me know.",
+        });
+      }
+    } catch (error) {
+      console.error("Error handling ICS download:", error);
+      await client.chat.postMessage({
+        channel: channelId,
+        text: "Sorry, there was an error processing your request. Please try again later.",
+      });
     }
   },
 
@@ -569,21 +626,21 @@ const utils = {
   //   return buffer;
   // },
 
-  generatePDF: async (content, userName) => {
+  generatePDF: async (content, userName, userProfile) => {
     const pageWidth = 595;
     const pageHeight = 842;
     const margin = 40;
-  
+
     const canvas = createCanvas(pageWidth, pageHeight, 'pdf');
     const ctx = canvas.getContext('2d');
-  
+
     // Helper function to wrap text
     const wrapText = (text, maxWidth) => {
       if (typeof text !== 'string') return [];
       const words = text.split(' ');
       const lines = [];
       let currentLine = words[0];
-  
+
       for (let i = 1; i < words.length; i++) {
         const word = words[i];
         const width = ctx.measureText(currentLine + " " + word).width;
@@ -597,7 +654,7 @@ const utils = {
       lines.push(currentLine);
       return lines;
     };
-  
+
     // Helper function to draw wrapped text
     const drawWrappedText = (text, x, y, maxWidth, lineHeight) => {
       if (typeof text !== 'string') return 0;
@@ -607,7 +664,7 @@ const utils = {
       });
       return lines.length * lineHeight;
     };
-  
+
     // Load and draw the header image
     try {
       const headerImage = await loadImage(path.join(__dirname, '..', 'assets', 'header-image.png'));
@@ -615,40 +672,59 @@ const utils = {
     } catch (error) {
       console.error('Error loading header image:', error);
     }
-  
+
     // Set up the PDF content
     ctx.fillStyle = '#333333';
     ctx.font = 'bold 28px Arial';
     ctx.fillText('Weekly Fitness Report', margin, 140);
-  
+
     // Add user name and date
     ctx.font = '16px Arial';
     ctx.fillText(`User: ${userName}`, margin, 170);
     ctx.fillText('Week of: ' + new Date().toLocaleDateString(), pageWidth - margin - 150, 170);
-  
+
     // Draw a separating line
     ctx.beginPath();
     ctx.moveTo(margin, 190);
     ctx.lineTo(pageWidth - margin, 190);
     ctx.stroke();
-  
+
     let y = 220;
     const contentWidth = pageWidth - (2 * margin);
-  
+
+    // Add user stats
+    ctx.font = 'bold 18px Arial';
+    ctx.fillStyle = '#1a73e8';
+    ctx.fillText('User Stats', margin, y);
+    y += 30;
+
+    ctx.font = '14px Arial';
+    ctx.fillStyle = '#333333';
+    const stats = [
+      `Momentum Score: ${userProfile.momentum_score}`,
+      `Current Streak: ${userProfile.current_streak} days`,
+      `Max Streak: ${userProfile.max_streak} days`
+    ];
+    stats.forEach(stat => {
+      ctx.fillText(stat, margin, y);
+      y += 20;
+    });
+    y += 20;
+
     // Parse and draw content sections
     const sections = content.split('#').slice(1);
     sections.forEach((section) => {
       if (typeof section !== 'string') return;
       const lines = section.split('\n').filter(line => line.trim() !== '');
       if (lines.length === 0) return;
-      
+
       const [title, ...content] = lines;
-      
+
       // Draw section title
       ctx.font = 'bold 20px Arial';
       ctx.fillStyle = '#1a73e8';
       y += drawWrappedText(title.trim(), margin, y, contentWidth, 28) + 15;
-  
+
       // Draw section content
       ctx.font = '14px Arial';
       ctx.fillStyle = '#333333';
@@ -672,16 +748,19 @@ const utils = {
           y += drawWrappedText(line.trim(), margin, y, contentWidth, 20) + 10;
         }
       });
-  
+
       y += 30; // Add space between sections
-  
+
       // Check if we need to add a new page
       if (y > pageHeight - margin * 2) {
         ctx.addPage();
         y = margin;
       }
     });
-  
+
+    // Add extra space at the bottom
+    y += 60;
+
     // Add a motivational quote
     ctx.font = 'italic 14px Arial';
     ctx.fillStyle = '#666666';
@@ -692,17 +771,17 @@ const utils = {
     ];
     const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
     ctx.fillText(randomQuote, margin, pageHeight - margin - 40);
-  
+
     // Add a footer
     ctx.font = '12px Arial';
     ctx.fillStyle = '#333333';
     ctx.fillText('Generated on ' + new Date().toLocaleString(), margin, pageHeight - margin - 10);
-  
+
     // Save the PDF
     const buffer = canvas.toBuffer('application/pdf');
     const fileName = `weekly_fitness_report_${userName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
     fs.writeFileSync(fileName, buffer);
-  
+
     return buffer;
   },
 

@@ -177,11 +177,11 @@
 
 //   app.action('user_details', async ({ ack, body, client }) => {
 //     console.log('Action received: user_details');
-    
+
 //     // Acknowledge the action immediately and only once
 //     await ack();
 //     console.log('Action acknowledged');
-    
+
 //     try {
 //       console.log('Attempting to open modal');
 //       await formLogic.handleUserDetailsCommand(client, body);
@@ -231,10 +231,10 @@ function init(app) {
         // const { name: username, email } = await utils.fetchUserInfo(app, event.user);
         const userProfile = await dbOps.getCachedUserProfile(event.user);
         const userContext = await dbOps.getLastMessages(event.channel, 5);
-        
+
         // Generate response
         const response = await aiOps.generateResponse(event.text, userContext, userProfile);
-        
+
         // Send the response
         await client.chat.postMessage({
           channel: event.channel,
@@ -243,7 +243,7 @@ function init(app) {
           parse: "mrkdwn",
           blocks: [],
         });
-        
+
         // Store the message
         await dbOps.storeMessage(event.user, event.channel, event.text);
       } catch (error) {
@@ -251,7 +251,7 @@ function init(app) {
       }
     }
   });
-  
+
   app.event("app_mention", async ({ event, context, client }) => {
     console.log("Received potential app mention:", event);
 
@@ -311,7 +311,7 @@ function init(app) {
         // If the message is related to the context, generate a response directly
         response = await aiOps.generateResponse(messageContent, userContext, userProfile);
         shouldStoreMessage = true;
-      }  else {
+      } else {
         // If it's a new topic, classify and proceed
         const messageType = await aiOps.classifyMessage(messageContent);
 
@@ -351,32 +351,106 @@ function init(app) {
     }
   });
 
+  // app.event("member_joined_channel", async ({ event, client }) => {
+  //   const { user, channel } = event;
+
+  //   try {
+  //     // Fetch user info
+  //     const { name: username } = await utils.fetchUserInfo(app, user);
+
+  //     // Construct the welcome message with a button
+  //     const welcomeMessage = {
+  //       text: `Welcome <@${user}> to the channel! I'm your fitness assistant bot. Here's what I can do for you:
+  //       \n- Track your fitness-related data
+  //       \n- Help plan exercises based on your profile
+  //       \n- Provide personalized nutrition plans
+  //       \n- Answer any fitness-related queries you might have. 
+  //       \nTo get personalized recommendations and answers, please fill out the form below.`,
+  //       blocks: [
+  //         {
+  //           type: "section",
+  //           text: {
+  //             type: "mrkdwn",
+  //             text: `Welcome <@${user}> to the channel! I'm your fitness assistant bot. Here's what I can do for you:
+  //             \n- Track your fitness-related data
+  //             \n- Help plan exercises based on your profile
+  //             \n- Provide personalized nutrition plans
+  //             \n- Answer any fitness-related queries you might have. 
+  //             \nTo get personalized recommendations and answers, please fill out the form below.`
+  //           }
+  //         },
+  //         {
+  //           type: "actions",
+  //           elements: [
+  //             {
+  //               type: "button",
+  //               text: {
+  //                 type: "plain_text",
+  //                 text: "Fill out the form"
+  //               },
+  //               action_id: "user_details"
+  //             }
+  //           ]
+  //         }
+  //       ]
+  //     };
+
+  //     // Send the welcome message with the button
+  //     await client.chat.postMessage({
+  //       channel,
+  //       ...welcomeMessage,
+  //     });
+  //   } catch (error) {
+  //     console.error("Error sending welcome message:", error);
+  //     await client.chat.postMessage({
+  //       channel: channel,
+  //       text: `Hi <@${user}>! I'm sorry, but there was an issue sending a welcome message. Please reach out if you need any help.`,
+  //     });
+  //   }
+  // });
+
   app.event("member_joined_channel", async ({ event, client }) => {
     const { user, channel } = event;
 
     try {
-      // Fetch user info
-      const { name: username } = await utils.fetchUserInfo(app, user);
-
-      // Construct the welcome message with a button
-      const welcomeMessage = {
-        text: `Welcome <@${user}> to the channel! I'm your fitness assistant bot. Here's what I can do for you:
-        \n- Track your fitness-related data
-        \n- Help plan exercises based on your profile
-        \n- Provide personalized nutrition plans
-        \n- Answer any fitness-related queries you might have. 
-        \nTo get personalized recommendations and answers, please fill out the form below.`,
+      // Welcome message for the main channel
+      const channelWelcomeMessage = {
+        text: `Welcome <@${user}> to the channel! I'm FitnessGuru, your fitness assistant bot.`,
         blocks: [
           {
             type: "section",
             text: {
               type: "mrkdwn",
-              text: `Welcome <@${user}> to the channel! I'm your fitness assistant bot. Here's what I can do for you:
-              \n- Track your fitness-related data
-              \n- Help plan exercises based on your profile
-              \n- Provide personalized nutrition plans
-              \n- Answer any fitness-related queries you might have. 
-              \nTo get personalized recommendations and answers, please fill out the form below.`
+              text: `Welcome <@${user}> to the channel! I'm FitnessGuru, your fitness assistant bot. I've sent you a DM with more information about how I can help you on your fitness journey.`
+            }
+          }
+        ]
+      };
+
+      // Detailed welcome message for DM
+      const dmWelcomeMessage = {
+        text: `Welcome to FitnessGuru! I'm here to help you with your fitness goals.`,
+        blocks: [
+          {
+            type: "section",
+            text: {
+              type: "mrkdwn",
+              text: `Welcome to FitnessGuru! I'm your personal fitness assistant bot. Here's what I can do for you:
+              \n• Track your fitness-related data
+              \n• Help plan exercises based on your profile
+              \n• Provide personalized nutrition plans
+              \n• Answer any fitness-related queries you might have`
+            }
+          },
+          {
+            type: "section",
+            text: {
+              type: "mrkdwn",
+              text: `Here are some commands you can use:
+              \n• \`/update-profile\`: Open the user details form
+              \n• \`/log\`: Log your daily exercise
+              \n• \`/clear\`: Clear your conversation history
+              \n• \`/supporthub\`: Find answers to common questions`
             }
           },
           {
@@ -386,7 +460,7 @@ function init(app) {
                 type: "button",
                 text: {
                   type: "plain_text",
-                  text: "Fill out the form"
+                  text: "Fill Out the Form"
                 },
                 action_id: "user_details"
               }
@@ -395,27 +469,30 @@ function init(app) {
         ]
       };
 
-      // Send the welcome message with the button
-      await client.chat.postMessage({
-        channel,
-        ...welcomeMessage,
-      });
-    } catch (error) {
-      console.error("Error sending welcome message:", error);
+      // Send welcome message to the main channel
       await client.chat.postMessage({
         channel: channel,
-        text: `Hi <@${user}>! I'm sorry, but there was an issue sending a welcome message. Please reach out if you need any help.`,
+        ...channelWelcomeMessage,
       });
+
+      // Send detailed welcome message as a DM
+      await client.chat.postMessage({
+        channel: user,
+        ...dmWelcomeMessage,
+      });
+    } catch (error) {
+      console.error("Error sending welcome messages:", error);
+      // Consider logging this error to a monitoring system
     }
   });
 
   app.action('user_details', async ({ ack, body, client }) => {
     console.log('Action received: user_details');
-    
+
     // Acknowledge the action immediately and only once
     await ack();
     console.log('Action acknowledged');
-    
+
     try {
       console.log('Attempting to open modal');
       await formLogic.handleUserDetailsCommand(client, body);
@@ -443,21 +520,31 @@ function init(app) {
     console.log('Is Subscribed:', isSubscribed);
 
     try {
-        // Make sure the column names in the database match
-        await dbOps.updateUserSubscription(userId, subscriptionType, isSubscribed);
+      // Make sure the column names in the database match
+      await dbOps.updateUserSubscription(userId, subscriptionType, isSubscribed);
 
-        const confirmationText = isSubscribed 
-            ? `Great! You've subscribed to the ${subscriptionType} plan.` 
-            : `No problem. You can always subscribe to the ${subscriptionType} plan later if you change your mind.`;
+      const confirmationText = isSubscribed
+        ? `Great! You've subscribed to the ${subscriptionType} plan.`
+        : `No problem. You can always subscribe to the ${subscriptionType} plan later if you change your mind.`;
 
-        await client.chat.postMessage({
-            channel: body.channel.id,
-            text: confirmationText,
-        });
+      await client.chat.postMessage({
+        channel: body.channel.id,
+        text: confirmationText,
+      });
     } catch (error) {
-        console.error(`Error updating ${subscriptionType} subscription for user ${userId}:`, error);
+      console.error(`Error updating ${subscriptionType} subscription for user ${userId}:`, error);
     }
-});  
+  });
+
+  app.action('download_plan_yes', async ({ body, ack, client, action }) => {
+    await ack();
+    await utils.handleICSDownload(client, body, action);
+  });
+
+  app.action('download_plan_no', async ({ body, ack, client, action }) => {
+    await ack();
+    await utils.handleICSDownload(client, body, action);
+  });
 }
 
 
