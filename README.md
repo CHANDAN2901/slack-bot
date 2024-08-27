@@ -129,6 +129,3 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 - [Slack API Documentation](https://api.slack.com/)
 - [Node.js Documentation](https://nodejs.org/api/)
 
----
-
-**Note**: Ensure all image files referenced in this README are present in the `images` folder of your repository for proper rendering on GitHub.
