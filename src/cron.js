@@ -9,17 +9,6 @@ const { SLACK_BOT_TOKEN } = require("./config");
 const { error } = require("pdf-lib");
 const slackClient = new WebClient(process.env.SLACK_BOT_TOKEN);
 
-async function deleteFile(filePath) {
-  try {
-    await fs.unlink(filePath);
-    console.log(`File deleted: ${filePath}`);
-  } catch (error) {
-    if (error.code !== 'ENOENT') {
-      console.error('Error deleting file:', error);
-    }
-  }
-}
-
 async function runHourlyChatSummarization() {
   console.log("Running chat summarization at", new Date());
 
@@ -190,7 +179,6 @@ async function runHourlyChatSummarization() {
 //     console.error("Error in runWeeklyUserReportGeneration:", error);
 //   }
 // }
-
 
 async function runWeeklyUserReportGeneration() {
   console.log("Running weekly user report generation");
