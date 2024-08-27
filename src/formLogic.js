@@ -108,10 +108,10 @@ const handlePartOneSubmission = async (client, body, view) => {
         await database.dbOps.storePartOneData(userId, partOneData);
         console.log('Part One data stored successfully for user:', userId);
 
-        await client.chat.postMessage({
-            channel: userId,
-            text: "Part 1 of your profile has been successfully saved. Please complete Part 2."
-        });
+        // await client.chat.postMessage({
+        //     channel: userId,
+        //     text: "Part 1 of your profile has been successfully saved. Please complete Part 2."
+        // });
 
         return {
             response_action: "update",
@@ -159,6 +159,12 @@ const handlePartTwoSubmission = async (client, body, view) => {
 
         // console.log("Body: ", body)
         // console.log("Client: ", body.channel.id)
+
+        console.log("client: ", client);
+        console.log("userId: ", userId);
+        console.log("client: ", body.user);
+
+
 
         await startSubscriptionQuestionnaire(client, userId, body.user);
 

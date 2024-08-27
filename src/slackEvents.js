@@ -221,20 +221,58 @@ async function showTypingIndicator(client, channel) {
 
 function init(app) {
 
+  // app.event('message', async ({ event, client }) => {
+  //   // Check if it's a direct message (im = direct message channel type)
+  //   if (event.channel_type === 'im') {
+  //     try {
+  //       const typingIndicator = await showTypingIndicator(client, event.channel);
+
+  //       // Process the message similarly to how you process mentions
+  //       // const { name: username, email } = await utils.fetchUserInfo(app, event.user);
+  //       const userProfile = await dbOps.getCachedUserProfile(event.user);
+  //       const userContext = await dbOps.getLastMessages(event.channel, 5);
+
+  //       // Generate response
+  //       const response = await aiOps.generateResponse(event.text, userContext, userProfile);
+
+  //       // Send the response
+  //       await client.chat.postMessage({
+  //         channel: event.channel,
+  //         ts: typingIndicator.ts,
+  //         text: response,
+  //         parse: "mrkdwn",
+  //         blocks: [],
+  //       });
+
+  //       // Store the message
+  //       await dbOps.storeMessage(event.user, event.channel, event.text);
+  //     } catch (error) {
+  //       console.error("Error processing direct message:", error);
+  //     }
+  //   }
+  // });
+
   app.event('message', async ({ event, client }) => {
     // Check if it's a direct message (im = direct message channel type)
     if (event.channel_type === 'im') {
       try {
         const typingIndicator = await showTypingIndicator(client, event.channel);
-
-        // Process the message similarly to how you process mentions
-        // const { name: username, email } = await utils.fetchUserInfo(app, event.user);
+  
+        // Fetch user information and store in database
+        const { name: username, email } = await utils.fetchUserInfo(app, event.user);
+        await dbOps.storeUser(event.user, username, email);
+  
+        // Fetch channel information and store in database
+        const channelName = await utils.fetchChannelInfo(app, event.channel);
+        await dbOps.storeChannel(event.channel, channelName);
+  
+        // Fetch user profile from cache
         const userProfile = await dbOps.getCachedUserProfile(event.user);
         const userContext = await dbOps.getLastMessages(event.channel, 5);
-
+  
         // Generate response
         const response = await aiOps.generateResponse(event.text, userContext, userProfile);
-
+  
         // Send the response
         await client.chat.postMessage({
           channel: event.channel,
@@ -243,11 +281,15 @@ function init(app) {
           parse: "mrkdwn",
           blocks: [],
         });
-
+  
         // Store the message
         await dbOps.storeMessage(event.user, event.channel, event.text);
       } catch (error) {
         console.error("Error processing direct message:", error);
+        await client.chat.postMessage({
+          channel: event.channel,
+          text: `I'm sorry, but I encountered an error while processing your message. Please try again later.`,
+        });
       }
     }
   });
@@ -450,7 +492,9 @@ function init(app) {
               \n• \`/update-profile\`: Open the user details form
               \n• \`/log\`: Log your daily exercise
               \n• \`/clear\`: Clear your conversation history
-              \n• \`/supporthub\`: Find answers to common questions`
+              \n• \`/supporthub\`: Find answers to common questions
+              \n• \`/exerciseplan\`: Get a personalized exercise plan
+              \n• \`/nutritionplan\`: Get a personalized nutrition plan`
             }
           },
           {

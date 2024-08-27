@@ -11,7 +11,7 @@ async function startSubscriptionQuestionnaire(client, channel, user) {
       callback_id: "exercise_subscription"
     },
     {
-      text: "Would you like to download your plan now?",
+      text: "Would you like to download your subscribed plan now?",
       callback_id: "download_plan"
     }
   ];
@@ -64,7 +64,4 @@ async function askQuestion(client, channel, user, question) {
   });
 }
 
-
-
-
-module.exports = { startSubscriptionQuestionnaire };
+module.exports = { startSubscriptionQuestionnaire, askQuestion };
