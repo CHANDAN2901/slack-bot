@@ -22,7 +22,7 @@ FitnessGuru is designed to provide personalized assistance to users by offering 
 
 Before starting the project, developers need to set up a few steps in Slack:
 
-1. **Create a Slack App**: Visit the [Slack API](https://api.slack.com/apps/A07DU3MALAE/general) and create a new app. 
+1. **Create a Slack App**: Visit the [Slack API](https://api.slack.com/apps/A07DU3MALAE/general) and create a new app.
 
    ![Create a Slack App](./images/slack-app-creation.png)
 
@@ -131,6 +131,4 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 
 ---
 
-### Note
-
-Please replace the placeholders in the images section with the actual file names of the screenshots you've uploaded or will create. This will help users better understand each step in the setup process.
+**Note**: Please ensure that all image files referenced in this README are present in the `images` folder of your repository for proper rendering on GitHub.
