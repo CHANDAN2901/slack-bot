@@ -23,7 +23,7 @@ redisClient.on("error", (err) => console.error("Redis Client Error", err));
 })();
 
 const REDIS_MESSAGE_LIMIT = 1000;
-const CONTEXT_MESSAGE_COUNT = 10;
+const CONTEXT_MESSAGE_COUNT = 5;
 
 const dbOps = {
   pool,
@@ -300,7 +300,7 @@ const dbOps = {
         [userId]
       );
 
-      console.log("User profile from database: ", userProfile)
+      // console.log("User profile from database: ", userProfile)
       if (userProfile.length === 0) {
         throw new Error("User not found");
       }
@@ -444,36 +444,6 @@ const dbOps = {
     }
   },
 
-  // Add this to your dbOps object
-  // storeExerciseLog: async (userId, channelId, content) => {
-  //   const connection = await pool.getConnection();
-  //   try {
-  //     await connection.beginTransaction();
-
-  //     // Call the handleMomentum procedure
-  //     await connection.query('CALL handleMomentum(?, ?, ?)', [userId, channelId, content]);
-
-  //     // Store the message
-  //     content = content.length > 2000 ? content.slice(0, 1997) + "..." : content;
-  //     const trimmedContent = content.replace(/^<@[A-Z0-9]+>\s*/, "");
-
-  //     // await connection.query(
-  //     //   "INSERT INTO messages (user_id, channel_id, content, created_at, is_log) VALUES (?, ?, ?, NOW(), 1)",
-  //     //   [userId, channelId, trimmedContent]
-  //     // );
-
-  //     await connection.commit();
-  //     console.log("Exercise log stored successfully and momentum updated");
-  //   } catch (error) {
-  //     await connection.rollback();
-  //     console.error("Error storing exercise log and updating momentum:", error);
-  //     throw error;
-  //   } finally {
-  //     connection.release();
-  //   }
-  // },
-
-
   storeExerciseLog: async (userId, channelId, content) => {
     const connection = await pool.getConnection();
     try {
@@ -498,9 +468,6 @@ const dbOps = {
       connection.release();
     }
   },
-
-  
-
 };
 
 async function transferDataToMySQL(channelId) {

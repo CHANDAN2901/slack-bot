@@ -12,6 +12,30 @@ const { SLACK_BOT_TOKEN } = require("./config");
 const slackClient = new WebClient(process.env.SLACK_BOT_TOKEN);
 const { createEvents } = require('ics');
 
+// Assume this is the directory where we'll store the ICS files
+const ICS_DIRECTORY = path.join(__dirname, '..', 'ics_files');
+
+// Ensure the directory exists
+if (!fs.existsSync(ICS_DIRECTORY)) {
+  try {
+    fs.mkdirSync(ICS_DIRECTORY, { recursive: true });
+    console.log(`Directory created: ${ICS_DIRECTORY}`);
+  } catch (mkdirError) {
+    console.error('Error creating directory:', mkdirError);
+  }
+}
+
+async function deleteICS(filePath) {
+  try {
+      await fs.unlink(filePath);
+      console.log(`ICS file deleted: ${filePath}`);
+  } catch (error) {
+      if (error.code !== 'ENOENT') {
+          console.error('Error deleting ICS file:', error);
+      }
+  }
+}
+
 const utils = {
   botName: null,
   botUserId: null,
@@ -78,7 +102,7 @@ const utils = {
   },
 
   convertNutritionPlanToICSEvents: (nutritionPlan, startDate) => {
-    console.log("Starting event conversion...");
+    // console.log("Starting event conversion...");
     const events = [];
     const lines = nutritionPlan.split('\n');
     const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
@@ -97,7 +121,7 @@ const utils = {
     for (const line of lines) {
       const dayIndex = daysOfWeek.findIndex(day => line.includes(day));
       if (dayIndex !== -1) {
-        console.log("Detected day: ", daysOfWeek[dayIndex]);
+        // console.log("Detected day: ", daysOfWeek[dayIndex]);
         currentDay = dayIndex;
         currentTime = new Date(startDate);
         currentTime.setDate(currentTime.getDate() + currentDay);
@@ -135,7 +159,7 @@ const utils = {
         ],
         duration: { hours: Math.floor(duration / 60), minutes: duration % 60 },
       });
-      console.log("Event added: ", details.title);
+      // console.log("Event added: ", details.title);
 
       // Move to the next time slot
       time.setMinutes(time.getMinutes() + duration);
@@ -213,7 +237,7 @@ const utils = {
         ],
         duration: { hours: Math.floor(duration / 60), minutes: duration % 60 },
       });
-      console.log("Event added: ", details.title);
+      // console.log("Event added: ", details.title);
 
       // Move to the next time slot
       time.setMinutes(time.getMinutes() + duration);
@@ -271,31 +295,148 @@ const utils = {
     }
   },
 
+  // sendCustomizedNutritionPlan: async (userId, newPurchases = []) => {
+  //   try {
+  //     const userProfile = await dbOps.getUserProfile(userId);
+  //     let plan;
+
+  //     if (newPurchases.length > 0) {
+  //       // If there are purchases, generate a plan based on the first purchase
+  //       const product = await dbOps.getProductDetails(newPurchases[0].product_id);
+  //       plan = await aiOps.generateIndianNutritionPlan(userProfile, product);
+
+  //     } else {
+  //       // If no purchases, generate a general plan
+  //       plan = await aiOps.generateIndianNutritionPlan(userProfile);
+  //     }
+
+  //     console.log("Generated nutrition plan:", plan);
+
+  //     await dbOps.pool.query(
+  //       `INSERT INTO plans (user_id, workout_plan, nutrition_plan)
+  //        VALUES (?, ?, ?)
+  //        ON DUPLICATE KEY UPDATE nutrition_plan = VALUES(nutrition_plan)`,
+  //       [userId, null, plan]
+  //     );
+
+  //     // Generate ICS file
+  //     const startDate = utils.getNextMonday();
+  //     const events = utils.convertNutritionPlanToICSEvents(plan, startDate);
+  //     console.log("Converted events:", JSON.stringify(events, null, 2));
+
+  //     if (events.length === 0) {
+  //       console.warn("No events were extracted from the nutrition plan.");
+  //     }
+
+  //     const filename = `nutrition_plan_${userId}.ics`;
+
+  //     try {
+  //       utils.generateICSFile(events, filename);
+
+  //       // Send message with ICS file
+  //       await utils.sendDirectMessageWithAttachment(
+  //         userId,
+  //         "Here's your customized 5-day nutrition plan:\n\n" + plan,
+  //         filename
+  //       );
+  //     } catch (icsError) {
+  //       console.error('Error generating or sending ICS file:', icsError);
+  //       // Still send the text plan if ICS generation fails
+  //       await utils.sendDirectMessageToUser(userId,
+  //         "Here's your customized 5-day nutrition plan:\n\n" + plan
+  //       );
+  //     } finally {
+  //       // Clean up the file if it was created
+  //       if (fs.existsSync(filename)) {
+  //         fs.unlinkSync(filename);
+  //       }
+  //     }
+  //   } catch (error) {
+  //     console.error("Error sending customized nutrition plan:", error);
+  //   }
+  // },
+
+  // sendCustomizedExercisePlan: async (userId, newPurchases = []) => {
+  //   try {
+  //     const userProfile = await dbOps.getUserProfile(userId);
+  //     let plan;
+
+  //     if (newPurchases.length > 0) {
+  //       // If there are purchases, generate a plan based on the first purchase
+  //       const product = await dbOps.getProductDetails(newPurchases[0].product_id);
+  //       plan = await aiOps.generateExerciseSuggestion(userProfile, product);
+  //     } else {
+  //       // If no purchases, generate a general plan
+  //       plan = await aiOps.generateExerciseSuggestion(userProfile);
+  //     }
+
+  //     console.log("Generated exercise plan:", plan);
+
+  //     await dbOps.pool.query(
+  //       `INSERT INTO plans (user_id, workout_plan, nutrition_plan)
+  //        VALUES (?, ?, ?)
+  //        ON DUPLICATE KEY UPDATE workout_plan = VALUES(workout_plan)`,
+  //       [userId, plan, null]
+  //     );
+
+  //     // Generate ICS file
+  //     const startDate = utils.getNextMonday();
+  //     const events = utils.convertExercisePlanToICSEvents(plan, startDate);
+  //     console.log("Converted events:", JSON.stringify(events, null, 2));
+
+  //     if (events.length === 0) {
+  //       console.warn("No events were extracted from the exercise plan.");
+  //     }
+
+  //     const filename = `exercise_plan_${userId}.ics`;
+
+  //     try {
+  //       utils.generateICSFile(events, filename);
+
+  //       // Send message with ICS file
+  //       await utils.sendDirectMessageWithAttachment(
+  //         userId,
+  //         "Here's your customized 5-day exercise plan:\n\n" + plan,
+  //         filename
+  //       );
+  //     } catch (icsError) {
+  //       console.error('Error generating or sending ICS file:', icsError);
+  //       // Still send the text plan if ICS generation fails
+  //       await utils.sendDirectMessageToUser(userId,
+  //         "Here's your customized 5-day exercise plan:\n\n" + plan
+  //       );
+  //     } finally {
+  //       // Clean up the file if it was created
+  //       if (fs.existsSync(filename)) {
+  //         fs.unlinkSync(filename);
+  //       }
+  //     }
+  //   } catch (error) {
+  //     console.error("Error sending customized exercise plan:", error);
+  //   }
+  // },
+
   sendCustomizedNutritionPlan: async (userId, newPurchases = []) => {
     try {
       const userProfile = await dbOps.getUserProfile(userId);
       let plan;
 
       if (newPurchases.length > 0) {
-        // If there are purchases, generate a plan based on the first purchase
         const product = await dbOps.getProductDetails(newPurchases[0].product_id);
         plan = await aiOps.generateIndianNutritionPlan(userProfile, product);
-
       } else {
-        // If no purchases, generate a general plan
         plan = await aiOps.generateIndianNutritionPlan(userProfile);
       }
 
-      console.log("Generated nutrition plan:", plan);
-
       await dbOps.pool.query(
-        `INSERT INTO plans (user_id, workout_plan, nutrition_plan)
-         VALUES (?, ?, ?)
+        `INSERT INTO plans (user_id, nutrition_plan)
+         VALUES (?, ?)
          ON DUPLICATE KEY UPDATE nutrition_plan = VALUES(nutrition_plan)`,
-        [userId, null, plan]
+        [userId, plan]
       );
 
-      // Generate ICS file
+      // console.log("Generated nutrition plan:", plan);
+
       const startDate = utils.getNextMonday();
       const events = utils.convertNutritionPlanToICSEvents(plan, startDate);
       console.log("Converted events:", JSON.stringify(events, null, 2));
@@ -305,27 +446,30 @@ const utils = {
       }
 
       const filename = `nutrition_plan_${userId}.ics`;
+      const filePath = path.join(ICS_DIRECTORY, filename);
+
+      // Delete existing ICS file if present
+      await deleteICS(filePath);
 
       try {
-        utils.generateICSFile(events, filename);
+        utils.generateICSFile(events, filePath);
 
-        // Send message with ICS file
-        await utils.sendDirectMessageWithAttachment(
-          userId,
-          "Here's your customized 5-day nutrition plan:",
-          filename
+        // Store the file path in the database
+        await dbOps.pool.query(
+          `INSERT INTO plans (user_id, nutrition_plan_path)
+           VALUES (?, ?)
+           ON DUPLICATE KEY UPDATE nutrition_plan_path = VALUES(nutrition_plan_path)`,
+          [userId, filePath]
+        );
+
+        await utils.sendDirectMessageToUser(userId,
+          "Your customized 5-day nutrition plan has been updated. Use the /nutritionplan command to view it."
         );
       } catch (icsError) {
-        console.error('Error generating or sending ICS file:', icsError);
-        // Still send the text plan if ICS generation fails
+        console.error('Error generating ICS file:', icsError);
         await utils.sendDirectMessageToUser(userId,
           "Here's your customized 5-day nutrition plan:\n\n" + plan
         );
-      } finally {
-        // Clean up the file if it was created
-        if (fs.existsSync(filename)) {
-          fs.unlinkSync(filename);
-        }
       }
     } catch (error) {
       console.error("Error sending customized nutrition plan:", error);
@@ -338,24 +482,21 @@ const utils = {
       let plan;
 
       if (newPurchases.length > 0) {
-        // If there are purchases, generate a plan based on the first purchase
         const product = await dbOps.getProductDetails(newPurchases[0].product_id);
         plan = await aiOps.generateExerciseSuggestion(userProfile, product);
       } else {
-        // If no purchases, generate a general plan
         plan = await aiOps.generateExerciseSuggestion(userProfile);
       }
 
-      console.log("Generated exercise plan:", plan);
-
       await dbOps.pool.query(
-        `INSERT INTO plans (user_id, workout_plan, nutrition_plan)
-         VALUES (?, ?, ?)
+        `INSERT INTO plans (user_id, workout_plan)
+         VALUES (?, ?)
          ON DUPLICATE KEY UPDATE workout_plan = VALUES(workout_plan)`,
-        [userId, plan, null]
+        [userId, plan]
       );
 
-      // Generate ICS file
+      console.log("Generated exercise plan:", plan);
+
       const startDate = utils.getNextMonday();
       const events = utils.convertExercisePlanToICSEvents(plan, startDate);
       console.log("Converted events:", JSON.stringify(events, null, 2));
@@ -365,27 +506,29 @@ const utils = {
       }
 
       const filename = `exercise_plan_${userId}.ics`;
+      const filePath = path.join(ICS_DIRECTORY, filename);
+
+      await deleteICS(filePath);
 
       try {
-        utils.generateICSFile(events, filename);
+        utils.generateICSFile(events, filePath);
 
-        // Send message with ICS file
-        await utils.sendDirectMessageWithAttachment(
-          userId,
-          "Here's your customized 5-day exercise plan:",
-          filename
+        // Store the file path in the database
+        await dbOps.pool.query(
+          `INSERT INTO plans (user_id, workout_plan_path)
+           VALUES (?, ?)
+           ON DUPLICATE KEY UPDATE workout_plan_path = VALUES(workout_plan_path)`,
+          [userId, filePath]
+        );
+
+        await utils.sendDirectMessageToUser(userId,
+          "Your customized 5-day exercise plan has been updated. Use the /exerciseplan command to view it."
         );
       } catch (icsError) {
-        console.error('Error generating or sending ICS file:', icsError);
-        // Still send the text plan if ICS generation fails
+        console.error('Error generating ICS file:', icsError);
         await utils.sendDirectMessageToUser(userId,
           "Here's your customized 5-day exercise plan:\n\n" + plan
         );
-      } finally {
-        // Clean up the file if it was created
-        if (fs.existsSync(filename)) {
-          fs.unlinkSync(filename);
-        }
       }
     } catch (error) {
       console.error("Error sending customized exercise plan:", error);

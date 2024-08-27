@@ -1,0 +1,182 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+CALSCALE:GREGORIAN
+PRODID:adamgibbons/ics
+METHOD:PUBLISH
+X-PUBLISHED-TTL:PT1H
+BEGIN:VEVENT
+UID:Q6t4sl70pLdWnvVIuFoHo
+SUMMARY:Barbell Squats
+DTSTAMP:20240823T101622Z
+DTSTART:20240826T023000Z
+DESCRIPTION:Description: Stand with feet shoulder-width apart\, barbell acr
+	oss upper back. Lower hips as if sitting back into a chair\, keeping back 
+	straight.  Return to standing.\nSets: 3\nReps: 8-12\nRest Time: 60 seconds
+DURATION:PT30M
+END:VEVENT
+BEGIN:VEVENT
+UID:GPvZwX2mZ0vYO7x2Ez0Bt
+SUMMARY:Dumbbell Bench Press
+DTSTAMP:20240823T101622Z
+DTSTART:20240826T030000Z
+DESCRIPTION:Description: Lie on a bench with feet flat on the floor\, dumbb
+	ells in each hand. Lower dumbbells towards chest\, keeping elbows slightly
+	 bent. Push back up to starting position.\nSets: 3\nReps: 8-12\nRest Time:
+	 60 seconds
+DURATION:PT30M
+END:VEVENT
+BEGIN:VEVENT
+UID:6d4bP-ehEvdtUU8k7frQp
+SUMMARY:Overhead Press
+DTSTAMP:20240823T101622Z
+DTSTART:20240826T033000Z
+DESCRIPTION:Description: Stand with feet shoulder-width apart\, dumbbells i
+	n each hand. Raise dumbbells above head\, keeping elbows slightly bent. Lo
+	wer dumbbells back down to starting position.\nSets: 3\nReps: 8-12\nRest T
+	ime: 60 seconds
+DURATION:PT30M
+END:VEVENT
+BEGIN:VEVENT
+UID:ThSYBgvvdgdRZCeDLncZJ
+SUMMARY:Deadlifts
+DTSTAMP:20240823T101622Z
+DTSTART:20240826T040000Z
+DESCRIPTION:Description: Stand with feet hip-width apart\, barbell in front
+	 of you. Bend down and grab the barbell with an overhand grip. Keeping bac
+	k straight\, lift the barbell up to standing position. Lower the barbell b
+	ack down to the floor.\nSets: 1\nReps: 5\nRest Time: 90 seconds
+DURATION:PT30M
+END:VEVENT
+BEGIN:VEVENT
+UID:h9MjYGD8gCzL_UqDp5N4n
+SUMMARY:Pull-ups
+DTSTAMP:20240823T101622Z
+DTSTART:20240827T023000Z
+DESCRIPTION:Description: Grasp a pull-up bar with an overhand grip\, hands 
+	shoulder-width apart. Hang from the bar with arms fully extended. Pull you
+	rself up until your chin is over the bar. Lower yourself back down to the 
+	starting position.\nSets: 3\nReps: as many as possible (AMRAP)\nRest Time:
+	 60 seconds
+DURATION:PT30M
+END:VEVENT
+BEGIN:VEVENT
+UID:y_RM2VBUE4QX2xqV3kYBK
+SUMMARY:Bent Over Rows
+DTSTAMP:20240823T101622Z
+DTSTART:20240827T030000Z
+DESCRIPTION:Description: Stand with feet shoulder-width apart\, dumbbells i
+	n each hand. Bend at the waist\, keeping back straight. Let the dumbbells 
+	hang towards the floor. Pull dumbbells up towards your chest\, keeping elb
+	ows close to your body. Lower dumbbells back down to the starting position
+	.\nSets: 3\nReps: 8-12\nRest Time: 60 seconds
+DURATION:PT30M
+END:VEVENT
+BEGIN:VEVENT
+UID:vLLnhUQ2XRoxVVcujloHG
+SUMMARY:Dumbbell Bicep Curls
+DTSTAMP:20240823T101622Z
+DTSTART:20240827T033000Z
+DESCRIPTION:Description: Stand with feet shoulder-width apart\, dumbbells i
+	n each hand.  Keep elbows close to your body\, curl dumbbells up towards y
+	our shoulders. Slowly lower dumbbells back to starting position.\nSets: 3\
+	nReps: 8-12\nRest Time: 60 seconds
+DURATION:PT30M
+END:VEVENT
+BEGIN:VEVENT
+UID:Zy9urtb52gHmSKhp7SSCx
+SUMMARY:Dumbbell Tricep Extensions
+DTSTAMP:20240823T101622Z
+DTSTART:20240827T040000Z
+DESCRIPTION:Description: Sit on a bench with feet flat on the floor\, dumbb
+	ells in each hand. Hold dumbbells above your head\, elbows bent. Slowly lo
+	wer dumbbells behind your head until your elbows are fully extended. Raise
+	 dumbbells back up to starting position.\nSets: 3\nReps: 8-12\nRest Time: 
+	60 seconds
+DURATION:PT30M
+END:VEVENT
+BEGIN:VEVENT
+UID:Mlte7sH3Bc_5brTuXPQXq
+SUMMARY:Swimming (Freestyle\, Backstroke)
+DTSTAMP:20240823T101622Z
+DTSTART:20240828T023000Z
+DESCRIPTION:Description: Swimming laps in a pool. Alternate between freesty
+	le and backstroke.\nDuration: 30 minutes\nRest Time: 30 seconds between la
+	ps
+DURATION:PT30M
+END:VEVENT
+BEGIN:VEVENT
+UID:IioVzhH-7Ev0UiuDGLWf0
+SUMMARY:Yoga Flow (Downward Dog\, Plank\, Chaturanga)
+DTSTAMP:20240823T101622Z
+DTSTART:20240828T030000Z
+DESCRIPTION:Description: A combination of poses that build strength and fle
+	xibility.\nDuration: 15 minutes\nRest Time: 30 seconds between poses
+DURATION:PT15M
+END:VEVENT
+BEGIN:VEVENT
+UID:JiPGrE8qsDwbZ5AYdtL11
+SUMMARY:Barbell Lunges
+DTSTAMP:20240823T101622Z
+DTSTART:20240829T023000Z
+DESCRIPTION:Description: Stand with feet hip-width apart\, barbell across u
+	pper back. Step forward with one leg\, lowering your hips until both knees
+	 are bent at 90 degrees. Push off with front leg to return to standing pos
+	ition. Repeat on the other leg.\nSets: 3\nReps: 8-12 per leg\nRest Time: 6
+	0 seconds
+DURATION:PT30M
+END:VEVENT
+BEGIN:VEVENT
+UID:OmMb1dTgBzw79wRLVvxc2
+SUMMARY:Calf Raises
+DTSTAMP:20240823T101622Z
+DTSTART:20240829T030000Z
+DESCRIPTION:Description: Stand with feet shoulder-width apart\, holding ont
+	o a wall or chair for balance. Raise up onto your toes\, squeezing your ca
+	lf muscles. Lower back down to the starting position.\nSets: 3\nReps: 15-2
+	0\nRest Time: 30 seconds
+DURATION:PT30M
+END:VEVENT
+BEGIN:VEVENT
+UID:CqbENd20y97nf1M89OkRx
+SUMMARY:Hamstring Curls
+DTSTAMP:20240823T101622Z
+DTSTART:20240829T033000Z
+DESCRIPTION:Description: Lie on your stomach on a weight bench\, feet hangi
+	ng off the edge.  Place a weight plate across your ankles.  Bend your knee
+	s\, lifting your feet towards your buttocks.  Slowly lower back to startin
+	g position.\nSets: 3\nReps: 8-12\nRest Time: 60 seconds
+DURATION:PT30M
+END:VEVENT
+BEGIN:VEVENT
+UID:VogZvSM_SjODRjoU1KPqA
+SUMMARY:Running
+DTSTAMP:20240823T101622Z
+DTSTART:20240830T023000Z
+DESCRIPTION:Description: Run at a moderate pace.\nDuration: 30 minutes\nRes
+	t Time: 30 seconds between intervals
+DURATION:PT30M
+END:VEVENT
+BEGIN:VEVENT
+UID:zb3M_2NjFz6ZeQ3q_1s0X
+SUMMARY:Jump Squats
+DTSTAMP:20240823T101622Z
+DTSTART:20240830T030000Z
+DESCRIPTION:Description: Stand with feet shoulder-width apart. Lower hips a
+	s if sitting back into a chair\, keeping back straight. Explosively jump u
+	p\, extending legs and arms. Land softly\, immediately lowering into next 
+	squat.\nSets: 3\nReps: 10-15\nRest Time: 60 seconds
+DURATION:PT30M
+END:VEVENT
+BEGIN:VEVENT
+UID:KkIlWTujmaiffiVUZRsYY
+SUMMARY:Push-Ups
+DTSTAMP:20240823T101622Z
+DTSTART:20240830T033000Z
+DESCRIPTION:Description: Place hands shoulder-width apart on the floor\, fi
+	ngers pointing forward. Lower your chest towards the floor\, keeping your 
+	body in a straight line from head to heels. Push back up to the starting p
+	osition.\nSets: 3\nReps: as many as possible (AMRAP)\nRest Time: 60 second
+	s
+DURATION:PT30M
+END:VEVENT
+END:VCALENDAR
