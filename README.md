@@ -131,4 +131,4 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 
 ---
 
-**Note**: Please ensure that all image files referenced in this README are present in the `images` folder of your repository for proper rendering on GitHub.
+**Note**: Ensure all image files referenced in this README are present in the `images` folder of your repository for proper rendering on GitHub.
